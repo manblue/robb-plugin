@@ -6,10 +6,12 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.TypePath;
 
 /**
  * 获取接口class 文件信息，
@@ -119,5 +121,32 @@ public class ClassPrinter extends ClassVisitor {
 	public Map<String, Object> getVisitConstructor() {
 		return visitConstructor;
 	}
+	@Override
+	public AnnotationVisitor visitTypeAnnotation(int typeRef,
+			TypePath typePath, String desc, boolean visible) {
+		// TODO Auto-generated method stub
+		Map<String, Object> params = new LinkedHashMap<String, Object>();
+		params.put(pflag, "visitTypeAnnotation");
+		params.put(pdesc, desc);
+		params.put("pvisible", visible);
+		params.put("ptypeRef", typeRef);
+		params.put("ptypePath", typePath);
+		System.out.println("params:"+params);
+		return super.visitTypeAnnotation(typeRef, typePath, desc, visible);
+	}
+	
+	@Override
+	public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
+		// TODO Auto-generated method stub
+		Map<String, Object> params = new LinkedHashMap<String, Object>();
+		params.put(pflag, "visitAnnotation");
+		params.put(pdesc, desc);
+		params.put("pvisible", visible);
+		AnnotationVisitor visitor = super.visitAnnotation(desc, visible);
+		params.put("pvisitor", visitor);
 
+		System.out.println("params:"+params);
+
+		return visitor;
+	}
 }
