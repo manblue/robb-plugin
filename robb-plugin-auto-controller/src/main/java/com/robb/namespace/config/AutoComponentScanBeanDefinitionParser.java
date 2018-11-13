@@ -22,7 +22,7 @@ public class AutoComponentScanBeanDefinitionParser extends ComponentScanBeanDefi
 	
 	private static final String ANNOTATION_CONFIG_ATTRIBUTE = "annotation-config";
 	
-	
+	private static final String ANNOTATION_AUTO_CONTROLLER = AutoController.class.getName();	
 	@Override
 	protected void registerComponents(XmlReaderContext readerContext,
 			Set<BeanDefinitionHolder> beanDefinitions, Element element) {
@@ -40,7 +40,9 @@ public class AutoComponentScanBeanDefinitionParser extends ComponentScanBeanDefi
 				System.out.println("------"+aa);
 
 			}
-			if (((ScannedGenericBeanDefinition)beanDefHolder.getBeanDefinition()).getMetadata().getAnnotationTypes().contains(AutoController.class.getName())) {
+			
+			//符合指定注解，生成对应controller
+			if (((ScannedGenericBeanDefinition)beanDefHolder.getBeanDefinition()).getMetadata().getAnnotationTypes().contains(ANNOTATION_AUTO_CONTROLLER)) {
 				System.out.println("------"+beanDefHolder.getBeanDefinition().getBeanClassName()+" is a "+AutoController.class.getSimpleName());
 			}
 			compositeDef.addNestedComponent(new BeanComponentDefinition(beanDefHolder));
