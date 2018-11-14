@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -177,7 +178,28 @@ public class DefaultManager2Controller {
 					aVisitor.visitEnd();
 
 				for (Parameter parameter : method.getParameters()) {
-					System.out.println("---"+mName+":-"+parameter.getName()+"-"+parameter.getAnnotatedType());
+					System.out.println("---"+mName+":-"+parameter.getName());
+					for (Annotation pAnnotation : parameter.getAnnotations()) {
+						System.out.println("---"+mName+":-"+parameter.getName()+"-"+pAnnotation.annotationType());
+						for (Method field : pAnnotation.annotationType().getDeclaredMethods()) {
+							try {
+								try {
+									System.out.println("---"+mName+":-"+parameter.getName()+"-"+pAnnotation.annotationType()+"-"+field.getName());
+									System.out.println("----------"+field.invoke(pAnnotation, null));
+								} catch (InvocationTargetException e) {
+									// TODO Auto-generated catch block
+									e.printStackTrace();
+								}
+							} catch (IllegalArgumentException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							} catch (IllegalAccessException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+
+						}
+					}
 				}
 					
 					
