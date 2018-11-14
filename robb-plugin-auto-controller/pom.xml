@@ -19,5 +19,10 @@
   		<artifactId>spring-context</artifactId>
   		<version>${springframework.version}</version>
   	</dependency>
+  	<dependency>
+  		<groupId>robb-plugin-asm-handler</groupId>
+  		<artifactId>robb-plugin-asm-handler</artifactId>
+  		<version>0.0.1-SNAPSHOT</version>
+  	</dependency>
   </dependencies>
 </project>

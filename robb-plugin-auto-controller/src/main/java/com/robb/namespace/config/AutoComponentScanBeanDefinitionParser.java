@@ -1,5 +1,6 @@
 package com.robb.namespace.config;
 
+import java.io.IOException;
 import java.util.Set;
 
 import org.springframework.beans.BeanMetadataElement;
@@ -11,9 +12,11 @@ import org.springframework.beans.factory.xml.XmlReaderContext;
 import org.springframework.context.annotation.AnnotationConfigUtils;
 import org.springframework.context.annotation.ComponentScanBeanDefinitionParser;
 import org.springframework.context.annotation.ScannedGenericBeanDefinition;
+import org.springframework.core.io.FileSystemResource;
 import org.w3c.dom.Element;
 
 import com.robb.annotation.AutoController;
+import com.robb.asm.DefaultManager2Controller;
 
 public class AutoComponentScanBeanDefinitionParser extends ComponentScanBeanDefinitionParser{
 
@@ -35,15 +38,25 @@ public class AutoComponentScanBeanDefinitionParser extends ComponentScanBeanDefi
 		for (BeanDefinitionHolder beanDefHolder : beanDefinitions) {
 			System.out.println("----"+beanDefHolder.getBeanDefinition().getBeanClassName());
 			System.out.println("----"+beanDefHolder.getBeanDefinition().getSource());
+			
 			((ScannedGenericBeanDefinition)beanDefHolder.getBeanDefinition()).getMetadata();
 			for (  String aa :((ScannedGenericBeanDefinition)beanDefHolder.getBeanDefinition()).getMetadata().getAnnotationTypes()) {
 				System.out.println("------"+aa);
-
 			}
 			
 			//符合指定注解，生成对应controller
 			if (((ScannedGenericBeanDefinition)beanDefHolder.getBeanDefinition()).getMetadata().getAnnotationTypes().contains(ANNOTATION_AUTO_CONTROLLER)) {
 				System.out.println("------"+beanDefHolder.getBeanDefinition().getBeanClassName()+" is a "+AutoController.class.getSimpleName());
+				
+				try {
+					Class managerClass = Class.forName(beanDefHolder.getBeanDefinition().getBeanClassName(), false, beanDefHolder.getBeanDefinition().getClass().getClassLoader());;
+					Class controClass = DefaultManager2Controller.buildControClass(managerClass,((FileSystemResource)beanDefHolder.getBeanDefinition().getSource()).getInputStream());
+		
+					System.out.println("----"+controClass);
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			}
 			compositeDef.addNestedComponent(new BeanComponentDefinition(beanDefHolder));
 		}

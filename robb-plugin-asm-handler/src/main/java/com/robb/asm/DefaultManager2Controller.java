@@ -1,11 +1,14 @@
 package com.robb.asm;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.nio.file.FileSystems;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -40,14 +43,14 @@ public class DefaultManager2Controller {
 	
 	final static String separator = "/";//FileSystems.getDefault().getSeparator();
 	
-	public static Class buildControClass(Class managerClass) {
+	public static Class buildControClass(Class managerClass,InputStream is) {
 		Class implClass = null;
 		try {
 
 			InterfaceHandler4Asm handler4Asm = new InterfaceHandler4Asm(managerClass.getClassLoader());
 			//获取相关签名信息
-			ClassPrinter printer = ClassPrinter.getNewPrinter();
-			InputStream is = ClassLoader.getSystemResourceAsStream(managerClass.getName().replace(".", "/")+".class");
+			ClassPrinter printer = ClassPrinter.getNewPrinter(true);
+//			InputStream is = managerClass.getClassLoader().getSystemResourceAsStream(managerClass.getName().replace(".", "/")+".class");
 			ClassReader cReader = new ClassReader(is);
 			cReader.accept(printer, 0);			
 			
@@ -84,6 +87,7 @@ public class DefaultManager2Controller {
 		
 		return implClass;
 	}
+
 	
 	static class InterfaceHandler4Asm extends ClassLoader implements Opcodes {
 
@@ -105,7 +109,9 @@ public class DefaultManager2Controller {
 			cw.visitAnnotation("Lorg/springframework/web/bind/annotation/RestController;", true);
 			RequestMapping requestMapping = (RequestMapping)clazz.getAnnotation(RequestMapping.class);
 			AnnotationVisitor annotationVisitor = cw.visitAnnotation("Lorg/springframework/web/bind/annotation/RequestMapping;", true);
-			annotationVisitor.visit("value",requestMapping.value()[0]);
+			AnnotationVisitor attVisitor = annotationVisitor.visitArray("value");
+			attVisitor.visit("value",requestMapping.value()[0]);
+			attVisitor.visitEnd();
 			annotationVisitor.visitEnd();
 			//空构造
 			MethodVisitor mv = cw.visitMethod(ACC_PUBLIC,
@@ -144,20 +150,21 @@ public class DefaultManager2Controller {
 			}
 			
 			for (Map<String, Object> classMethod : classMethods) {
-				String mDesc = (String)classMethod.get(ClassPrinter.pdesc);
 				String mName = (String)classMethod.get(ClassPrinter.pname);
-				boolean returnFlag = mDesc.contains(")V") ? false : true;//是否有返回
-				Method method = methodMap.get(mName+":"+mDesc);
-				if (mName.equals("<init>")) {
+				if (mName.contains("<") || mName.equals(clazz.getSimpleName())) {//初始化函数 构造函数
 					continue;
 				}
+				
+				String mDesc = (String)classMethod.get(ClassPrinter.pdesc);
+				boolean returnFlag = mDesc.contains(")V") ? false : true;//是否有返回
+				Method method = methodMap.get(mName+":"+mDesc);
+				
 				MethodVisitor mv = cw.visitMethod(ACC_PUBLIC + (returnFlag ? ACC_VARARGS:0), 
 						mName, 
 						mDesc, 
 						(String)classMethod.get(ClassPrinter.psignature), 
 						(String[])classMethod.get(ClassPrinter.pexceptions));
 				
-				if (method != null) {
 					RequestMapping requestMapping = (RequestMapping)method.getAnnotation(RequestMapping.class);
 					AnnotationVisitor aVisitor = mv.visitAnnotation("Lorg/springframework/web/bind/annotation/RequestMapping;", true);
 					AnnotationVisitor visitor1 = aVisitor.visitArray("value");
@@ -168,9 +175,12 @@ public class DefaultManager2Controller {
 					visitor1.visitEnum("method", "Lorg.springframework.web.bind.annotation.RequestMethod;", requestMapping.method()[0].name());
 					visitor1.visitEnd();
 					aVisitor.visitEnd();
-				}
 
-				
+				for (Parameter parameter : method.getParameters()) {
+					System.out.println("---"+mName+":-"+parameter.getName()+"-"+parameter.getAnnotatedType());
+				}
+					
+					
 				mv.visitCode();
 				//字段调用逻辑
 				mv.visitVarInsn(ALOAD, 0);//this

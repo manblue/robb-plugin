@@ -28,21 +28,23 @@ public class ClassPrinter extends ClassVisitor {
 	public final static String pvalue = "value";
 	public final static String pexceptions = "exceptions";
 	public final static String pflag = "flag";
+	private boolean sysout = false;
 	
 	private List<Map<String, Object>> visitMethods = new LinkedList<Map<String,Object>>();
 	private Map<String, Object> visitConstructor = new LinkedHashMap<String, Object>();
 
 	private Class interfaceClass;
 	
-	private ClassPrinter() {
+	private ClassPrinter(boolean sysout) {
 		super(Opcodes.ASM5);
+		this.sysout =sysout;
 	}
-	
-	public static ClassPrinter getNewPrinter() {
+
+	public static ClassPrinter getNewPrinter(boolean sysout) {
 //		if (interfaceClass.isInterface()) {
 //			return new ClassPrinter();
 //		}
-		return new ClassPrinter();
+		return new ClassPrinter(sysout);
 
 //		throw new IllegalArgumentException(interfaceClass+"must be Interface class");
 	}
@@ -66,7 +68,9 @@ public class ClassPrinter extends ClassVisitor {
 			}
 			visitConstructor.put("interfaces1", sb.toString());
 		}
-		System.out.println("params:"+visitConstructor);
+		if (sysout) {
+			System.out.println("params:"+visitConstructor);
+		}
 	}
 	
 	@Override
@@ -80,7 +84,9 @@ public class ClassPrinter extends ClassVisitor {
 		params.put(psignature, signature);
 		params.put(pdesc, desc);
 		params.put(pvalue, value);
-		System.out.println("params:"+params);
+		if (sysout) {
+			System.out.println("params:"+params);
+		}
 
 		return super.visitField(access, name, desc, signature, value);
 
@@ -107,7 +113,9 @@ public class ClassPrinter extends ClassVisitor {
 		if (access > Opcodes.ACC_ABSTRACT) {
 			params.put("access1", access -  Opcodes.ACC_ABSTRACT);
 		}
-		System.out.println("params:"+params);
+		if (sysout) {
+			System.out.println("params:"+params);
+		}
 
 		visitMethods.add(params);
 		return super.visitMethod(access, name, desc, signature, exceptions);
@@ -131,7 +139,9 @@ public class ClassPrinter extends ClassVisitor {
 		params.put("pvisible", visible);
 		params.put("ptypeRef", typeRef);
 		params.put("ptypePath", typePath);
-		System.out.println("params:"+params);
+		if (sysout) {
+			System.out.println("params:"+params);
+		}
 		return super.visitTypeAnnotation(typeRef, typePath, desc, visible);
 	}
 	
@@ -145,7 +155,9 @@ public class ClassPrinter extends ClassVisitor {
 		AnnotationVisitor visitor = super.visitAnnotation(desc, visible);
 		params.put("pvisitor", visitor);
 
-		System.out.println("params:"+params);
+		if (sysout) {
+			System.out.println("params:"+params);
+		}
 
 		return visitor;
 	}
