@@ -1,21 +1,18 @@
 package com.robb.asm;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.nio.file.FileSystems;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassReader;
@@ -24,7 +21,10 @@ import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ValueConstants;
 
 public class DefaultManager2Controller {
 
@@ -44,10 +44,15 @@ public class DefaultManager2Controller {
 	
 	final static String separator = "/";//FileSystems.getDefault().getSeparator();
 	
+	private final static Logger LOGGER = LoggerFactory.getLogger(DefaultManager2Controller.class);
+	
 	public static Class buildControClass(Class managerClass,InputStream is) {
 		Class implClass = null;
 		try {
 
+			if (!managerClass.getSimpleName().endsWith("Manager")) {
+				throw new IllegalArgumentException(" this plugin only support Manager layer!");
+			}
 			InterfaceHandler4Asm handler4Asm = new InterfaceHandler4Asm(managerClass.getClassLoader());
 			//获取相关签名信息
 			ClassPrinter printer = ClassPrinter.getNewPrinter(true);
@@ -110,10 +115,9 @@ public class DefaultManager2Controller {
 			cw.visitAnnotation("Lorg/springframework/web/bind/annotation/RestController;", true);
 			RequestMapping requestMapping = (RequestMapping)clazz.getAnnotation(RequestMapping.class);
 			AnnotationVisitor annotationVisitor = cw.visitAnnotation("Lorg/springframework/web/bind/annotation/RequestMapping;", true);
-			AnnotationVisitor attVisitor = annotationVisitor.visitArray("value");
-			attVisitor.visit("value",requestMapping.value()[0]);
-			attVisitor.visitEnd();
+			buildAnnotation(annotationVisitor, requestMapping);
 			annotationVisitor.visitEnd();
+			
 			//空构造
 			MethodVisitor mv = cw.visitMethod(ACC_PUBLIC,
 					"<init>", "()V", null, null);
@@ -138,6 +142,7 @@ public class DefaultManager2Controller {
 			fv.visitEnd();
 			return fv;
 		}
+		
 		//拼装方法信息
 		public void buildClassMethod(ClassWriter cw, Class clazz,List<Map<String, Object>> classMethods, Map<String, Object> outPutParams) {
 			String fieldName = (String) outPutParams.get(kFiedlName);
@@ -212,9 +217,8 @@ public class DefaultManager2Controller {
 				}else {
 					mv.visitFieldInsn(GETFIELD, fullImplName, fieldName, fieldDesc);//fieldName
 					//入参描述符分割
-					buildMethodVisitorArgs(mv, mDesc);
+					buildMethodVisitorArgs(mv, mDesc,method);
 					mv.visitMethodInsn(INVOKEINTERFACE, fullInterfaceName, mName, mDesc, true);//mName
-
 				}
 
 //				mv.visitVarInsn(ALOAD, 1);//入参1
@@ -227,7 +231,8 @@ public class DefaultManager2Controller {
 					}
 				}
 				*/
-				
+//				mv.visitLocalVariable("name", "Ljava/lang/String;", null, start, end, 1);
+				buildParameterAnnotation(mv, method);
 				mv.visitInsn(returnFlag?ARETURN:RETURN);
 				mv.visitMaxs(3, 1);
 				mv.visitEnd();
@@ -250,11 +255,11 @@ public class DefaultManager2Controller {
 		   int----------------------[I------------------------  -aload
 		   Object-----------------[[Ljava/lang/Object;----aload
        */
-		private static  void buildMethodVisitorArgs(MethodVisitor mv,String methodArgsDesc) {
+		private static  void buildMethodVisitorArgs(MethodVisitor mv,String methodArgsDesc,Method method) {
+			methodArgsDesc = Type.getMethodDescriptor(method);
 			if (methodArgsDesc.startsWith("()")) {//无参数
 				return ;
 			}
-			
 			String argsDesc = StringUtils.substringBefore(StringUtils.substringAfter(methodArgsDesc, "("), ")");
 			
 			String[] args = StringUtils.split(argsDesc,';');
@@ -332,6 +337,7 @@ public class DefaultManager2Controller {
 				}
 			}
 			
+			//亚栈入参指令
 			int loadNum = 1;
 			for (Integer loadOpcode : loadList) {
 				System.out.println(loadOpcode+"-----------"+loadNum);
@@ -339,9 +345,108 @@ public class DefaultManager2Controller {
 					loadNum++;
 				}
 				mv.visitVarInsn(loadOpcode, loadNum++);
-				
 			}
 			
+		}
+		
+		/**
+		 * 拼装方法注解
+		 * */
+		private static  void buildMethodAnnotation(MethodVisitor mv, Method method) {
+			Annotation[] annotations = method.getAnnotations();
+			if (ArrayUtils.isEmpty(annotations)) {
+				return;
+			}
+			
+			for (Annotation methodAnnotation : annotations) {
+				//paramAnnotation 为注解代理 class com.sun.proxy.$Proxy11
+				   //paramAnnotation.annotationType() 为原始注解
+					Class orgAnnotation = methodAnnotation.annotationType();
+					AnnotationVisitor aVisitor = mv.visitAnnotation(Type.getDescriptor(orgAnnotation), true);
+					buildAnnotation(aVisitor, methodAnnotation);
+					aVisitor.visitEnd();
+			}
+		}
+		/**
+		 * 拼装方法参数名称，参数注解，方法注解
+		 * */
+		private static  void buildParameterAnnotation(MethodVisitor mv, Method method) {
+			Parameter[] parameters = method.getParameters();
+			if (ArrayUtils.isEmpty(parameters)) {
+				return ;
+			}
+			
+			int pindex = 0;
+			for (Parameter parameter : parameters) {
+				if (!parameter.isNamePresent()) {
+					throw new IllegalArgumentException("please use JDK8 compile [-parameters]");
+				}
+				//添加参数名称
+				mv.visitParameter(parameter.getName(), Opcodes.ACC_MANDATED);
+				
+				//添加参数注解 默认只有一个注解
+//				AnnotatedType paramAnnotated = parameter.getAnnotatedType();
+				Annotation[] paramAnnotations = parameter.getAnnotations();
+				if (ArrayUtils.isNotEmpty(paramAnnotations)) {
+					for (Annotation paramAnnotation : paramAnnotations) {
+						//paramAnnotation 为注解代理 class com.sun.proxy.$Proxy11
+					   //paramAnnotation.annotationType() 为原始注解
+						Class orgAnnotation = paramAnnotation.annotationType();
+						AnnotationVisitor paramVisitor = mv.visitParameterAnnotation(pindex, Type.getDescriptor(orgAnnotation), true);
+						buildAnnotation(paramVisitor, paramAnnotation);
+						paramVisitor.visitEnd();
+					}
+				}
+			}
+		}
+		/**
+		 * 拼装注解对象
+		 * */
+		private static void buildAnnotation(AnnotationVisitor annotationVisitor,Annotation annotationObj) {
+
+			//paramAnnotation 为注解代理 class com.sun.proxy.$Proxy11
+			   //paramAnnotation.annotationType() 为原始注解
+				Class orgAnnotation = annotationObj.annotationType();
+				for (Method paramAnnMethod : orgAnnotation.getDeclaredMethods()) {
+					try {
+						LOGGER.info("----- AnnotatedType:{} field:{}", orgAnnotation,paramAnnMethod);
+						Object val = paramAnnMethod.invoke(annotationObj, null);
+						if (val == null) {
+							continue;
+						}
+						
+						if (val.getClass().isArray()) {
+							if (ArrayUtils.isEmpty((Object[]) val)) {
+								continue;
+							}
+							AnnotationVisitor ava = annotationVisitor.visitArray(paramAnnMethod.getName());
+							for (Object ov : (Object[])val) {
+								buildAnnotationAddField(ava, paramAnnMethod.getName(), ov);
+							}
+							ava.visitEnd();
+						}else {
+							buildAnnotationAddField(annotationVisitor, paramAnnMethod.getName(), val);
+						}
+						
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+						throw new IllegalArgumentException(DefaultManager2Controller.class+":deal parameter annotated err:"+e.getMessage());
+					} 
+				}
+		}
+		
+		/**添加注解字段*/
+		private static void buildAnnotationAddField(AnnotationVisitor annotationVisitor,String field, Object val) {
+			if (val.getClass().isEnum()) {
+				annotationVisitor.visitEnum(field, Type.getDescriptor(val.getClass()), val.toString());
+			}else if (val instanceof String && 
+					(StringUtils.isBlank((String)val) ||
+							StringUtils.equals(ValueConstants.DEFAULT_NONE, (CharSequence) val))) {
+				//string 不处理情况
+			}else {
+				annotationVisitor.visit(field, val);
+			}
 		}
 		
 		public final Class<?> defineClazz(String name, byte[] b, int off, int len)
@@ -351,22 +456,10 @@ public class DefaultManager2Controller {
 					Method cc = ClassLoader.class.getDeclaredMethod("defineClass", String.class,byte[].class,int.class,int.class);
 					cc.setAccessible(true);
 					return (Class<?>)cc.invoke(getParent(), new Object[]{name,b,off,len});
-				} catch (IllegalAccessException e) {
+				} catch (Exception e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
-				} catch (IllegalArgumentException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (InvocationTargetException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (NoSuchMethodException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (SecurityException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+				} 
 	            return super.defineClass(name, b, off, len, null);
 	        }
 	}
