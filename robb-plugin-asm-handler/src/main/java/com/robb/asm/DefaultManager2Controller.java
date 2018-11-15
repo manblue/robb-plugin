@@ -4,8 +4,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -164,6 +164,10 @@ public class DefaultManager2Controller {
 				String mDesc = (String)classMethod.get(ClassPrinter.pdesc);
 				boolean returnFlag = mDesc.contains(")V") ? false : true;//是否有返回
 				Method method = methodMap.get(mName+":"+mDesc);
+				if (!Modifier.isPublic(method.getModifiers())) {//非public方法，不处理
+					continue;
+				}
+				
 				
 				MethodVisitor mv = cw.visitMethod(ACC_PUBLIC + (returnFlag ? ACC_VARARGS:0), 
 						mName, 
@@ -171,41 +175,42 @@ public class DefaultManager2Controller {
 						(String)classMethod.get(ClassPrinter.psignature), 
 						(String[])classMethod.get(ClassPrinter.pexceptions));
 				
-					RequestMapping requestMapping = (RequestMapping)method.getAnnotation(RequestMapping.class);
-					AnnotationVisitor aVisitor = mv.visitAnnotation("Lorg/springframework/web/bind/annotation/RequestMapping;", true);
-					AnnotationVisitor visitor1 = aVisitor.visitArray("value");
-					visitor1.visit("value", requestMapping.value()[0]);
-					visitor1.visitEnd();
-//					aVisitor.visit("method", requestMapping.method()[0]);
-					visitor1 = aVisitor.visitArray("method");
-					visitor1.visitEnum("method", "Lorg.springframework.web.bind.annotation.RequestMethod;", requestMapping.method()[0].name());
-					visitor1.visitEnd();
-					aVisitor.visitEnd();
+//					RequestMapping requestMapping = (RequestMapping)method.getAnnotation(RequestMapping.class);
+//					AnnotationVisitor aVisitor = mv.visitAnnotation("Lorg/springframework/web/bind/annotation/RequestMapping;", true);
+//					AnnotationVisitor visitor1 = aVisitor.visitArray("value");
+//					visitor1.visit("value", requestMapping.value()[0]);
+//					visitor1.visitEnd();
+////					aVisitor.visit("method", requestMapping.method()[0]);
+//					visitor1 = aVisitor.visitArray("method");
+//					visitor1.visitEnum("method", "Lorg.springframework.web.bind.annotation.RequestMethod;", requestMapping.method()[0].name());
+//					visitor1.visitEnd();
+//					aVisitor.visitEnd();
 
-				for (Parameter parameter : method.getParameters()) {
-					System.out.println("---"+mName+":-"+parameter.getName());
-					for (Annotation pAnnotation : parameter.getAnnotations()) {
-						System.out.println("---"+mName+":-"+parameter.getName()+"-"+pAnnotation.annotationType());
-						for (Method field : pAnnotation.annotationType().getDeclaredMethods()) {
-							try {
-								try {
-									System.out.println("---"+mName+":-"+parameter.getName()+"-"+pAnnotation.annotationType()+"-"+field.getName());
-									System.out.println("----------"+field.invoke(pAnnotation, null));
-								} catch (InvocationTargetException e) {
-									// TODO Auto-generated catch block
-									e.printStackTrace();
-								}
-							} catch (IllegalArgumentException e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-							} catch (IllegalAccessException e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-							}
-
-						}
-					}
-				}
+					buildMethodAnnotation(mv, method);
+//				for (Parameter parameter : method.getParameters()) {
+//					System.out.println("---"+mName+":-"+parameter.getName());
+//					for (Annotation pAnnotation : parameter.getAnnotations()) {
+//						System.out.println("---"+mName+":-"+parameter.getName()+"-"+pAnnotation.annotationType());
+//						for (Method field : pAnnotation.annotationType().getDeclaredMethods()) {
+//							try {
+//								try {
+//									System.out.println("---"+mName+":-"+parameter.getName()+"-"+pAnnotation.annotationType()+"-"+field.getName());
+//									System.out.println("----------"+field.invoke(pAnnotation, null));
+//								} catch (InvocationTargetException e) {
+//									// TODO Auto-generated catch block
+//									e.printStackTrace();
+//								}
+//							} catch (IllegalArgumentException e) {
+//								// TODO Auto-generated catch block
+//								e.printStackTrace();
+//							} catch (IllegalAccessException e) {
+//								// TODO Auto-generated catch block
+//								e.printStackTrace();
+//							}
+//
+//						}
+//					}
+//				}
 					
 					
 				mv.visitCode();
@@ -341,9 +346,9 @@ public class DefaultManager2Controller {
 			int loadNum = 1;
 			for (Integer loadOpcode : loadList) {
 				System.out.println(loadOpcode+"-----------"+loadNum);
-				if (loadNum == 8) {
-					loadNum++;
-				}
+//				if (loadNum == 8) {
+//					loadNum++;
+//				}
 				mv.visitVarInsn(loadOpcode, loadNum++);
 			}
 			

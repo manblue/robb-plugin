@@ -8,11 +8,12 @@
   <groupId>robb-plugin-asm-handler</groupId>
   <artifactId>robb-plugin-asm-handler</artifactId>
   <dependencies>
+
   	<dependency>
-  		<groupId>org.ow2.asm</groupId>
-  		<artifactId>asm</artifactId>
-  		<version>6.0_BETA</version>
-  	</dependency>
+    <groupId>org.ow2.asm</groupId>
+    <artifactId>asm</artifactId>
+    <version>7.0</version>
+</dependency>
   	<dependency>
   		<groupId>org.apache.commons</groupId>
   		<artifactId>commons-lang3</artifactId>
