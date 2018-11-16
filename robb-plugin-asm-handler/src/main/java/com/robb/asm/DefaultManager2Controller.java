@@ -12,15 +12,21 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import jdk.internal.org.objectweb.asm.AnnotationVisitor;
+import jdk.internal.org.objectweb.asm.ClassReader;
+import jdk.internal.org.objectweb.asm.ClassWriter;
+import jdk.internal.org.objectweb.asm.FieldVisitor;
+import jdk.internal.org.objectweb.asm.Label;
+import jdk.internal.org.objectweb.asm.MethodVisitor;
+import jdk.internal.org.objectweb.asm.Opcodes;
+import jdk.internal.org.objectweb.asm.Type;
+import jdk.internal.org.objectweb.asm.tree.ClassNode;
+import jdk.internal.org.objectweb.asm.tree.LocalVariableNode;
+import jdk.internal.org.objectweb.asm.tree.MethodNode;
+import jdk.internal.org.objectweb.asm.tree.ParameterNode;
+
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.objectweb.asm.AnnotationVisitor;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.FieldVisitor;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,17 +35,17 @@ import org.springframework.web.bind.annotation.ValueConstants;
 public class DefaultManager2Controller {
 
 	final static String superName = "java/lang/Object";
-	/**½Ó¿ÚÀàÈ«Ãû com/ml/example/service/RobbService */
+	/**æ¥å£å…¨è·¯å¾„åç§° com/ml/example/service/RobbService */
 	final static String kFullInterfaceName = "fullInterfaceName";
-	/**½Ó¿ÚÀàÃû*/
+	/**æ¥å£åç§°*/
 	final static String kInterfaceName = "interfaceName";
-	/**½Ó¿ÚIMPLÀàÈ«Ãû com/ml/example/service/impl/RobbServiceImpl */
+	/**å®ç°ç±»IMPLå…¨è·¯å¾„åç§° com/ml/example/service/impl/RobbServiceImpl */
 	final static String kFullImplName = "fullImplName";
-	/**½Ó¿ÚIMPLÀàÃû */
+	/**å®ç°ç±»IMPLåç§° */
 	final static String kImplName = "implName";
-	/**×Ö¶ÎÃû³Æ*/
+	/**å­—æ®µåç§°*/
 	final static String kFiedlName = "fieldName";
-	/**×Ö¶ÎÃèÊö*/
+	/**å­—æ®µæè¿°*/
 	final static String kFieldDesc = "fieldDesc";
 	
 	final static String separator = "/";//FileSystems.getDefault().getSeparator();
@@ -49,16 +55,26 @@ public class DefaultManager2Controller {
 	public static Class buildControClass(Class managerClass,InputStream is) {
 		Class implClass = null;
 		try {
-
 			if (!managerClass.getSimpleName().endsWith("Manager")) {
 				throw new IllegalArgumentException(" this plugin only support Manager layer!");
 			}
 			InterfaceHandler4Asm handler4Asm = new InterfaceHandler4Asm(managerClass.getClassLoader());
-			//»ñÈ¡Ïà¹ØÇ©ÃûĞÅÏ¢
+			//ï¿½ï¿½È¡ï¿½ï¿½ï¿½Ç©ï¿½ï¿½ï¿½ï¿½Ï¢
 			ClassPrinter printer = ClassPrinter.getNewPrinter(true);
 //			InputStream is = managerClass.getClassLoader().getSystemResourceAsStream(managerClass.getName().replace(".", "/")+".class");
 			ClassReader cReader = new ClassReader(is);
 			cReader.accept(printer, 0);			
+
+			ClassNode node = new ClassNode();
+			cReader.accept(node, ClassReader.EXPAND_FRAMES);
+			List<MethodNode> list = node.methods;
+			for (MethodNode methodNode : list) {
+				List<ParameterNode> pNodes = methodNode.parameters;
+				for (LocalVariableNode lvNode : methodNode.localVariables) {
+					System.out.println("-methodName:"+methodNode.name+"-index:"+lvNode.index+"-name:"+lvNode.name+"-desc:"+lvNode.desc);
+				}
+				System.out.println("-------------------------");
+			}
 			
 			Map<String, Object> outPutParams = new HashMap<String, Object>();
 			outPutParams.put(kInterfaceName, managerClass.getSimpleName());
@@ -67,10 +83,10 @@ public class DefaultManager2Controller {
 			
 			Type.getDescriptor(managerClass);
 			ClassWriter cw = handler4Asm.buildClassHead(managerClass,outPutParams);
-			FieldVisitor fv = handler4Asm.buildClassField(cw, managerClass,outPutParams);
+			handler4Asm.buildClassField(cw, managerClass,outPutParams);
 			handler4Asm.buildClassMethod(cw,managerClass, printer.getVisitMethods(),outPutParams);
 			cw.visitEnd();
-			//Ğ´ÎÄ¼ş
+			//è¾“å‡ºclassæ–‡ä»¶
 			byte[] code = cw.toByteArray();
 			FileOutputStream fos = null;
 			String outFile = managerClass.getResource("/").getPath()+(String) outPutParams.get(kFullImplName)+".class";
@@ -85,6 +101,12 @@ public class DefaultManager2Controller {
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		}finally{
+			try {
+				is.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 //		catch (ClassNotFoundException e) {
 //			// TODO Auto-generated catch block
@@ -100,7 +122,7 @@ public class DefaultManager2Controller {
 		public InterfaceHandler4Asm(ClassLoader parent) {
 			super(parent);
 		}
-		//Æ´×°ÀàÍ·ĞÅÏ¢£¬¹¹Ôì·½·¨
+		//æ‹¼è£…classå¤´ä¿¡æ¯
 		public ClassWriter buildClassHead(Class clazz, Map<String, Object> outPutParams) {
 			String nameImpl = clazz.getName().replace(".", separator).replace("Manager", "Controller1").replace("manager", "controller");//java.lang.String
 			String simpleName =  clazz.getSimpleName().replace("Manager", "Controller1");
@@ -118,7 +140,7 @@ public class DefaultManager2Controller {
 			buildAnnotation(annotationVisitor, requestMapping);
 			annotationVisitor.visitEnd();
 			
-			//¿Õ¹¹Ôì
+			//é»˜è®¤åˆå§‹åŒ–æ–¹æ³•
 			MethodVisitor mv = cw.visitMethod(ACC_PUBLIC,
 					"<init>", "()V", null, null);
 			mv.visitVarInsn(ALOAD, 0);
@@ -129,7 +151,7 @@ public class DefaultManager2Controller {
 			return cw;
 		}
 		
-		//Æ´×°×Ö¶ÎĞÅÏ¢
+		//æ‹¼è£…å­—æ®µä¿¡æ¯
 		public FieldVisitor buildClassField(ClassWriter cw,Class clazz, Map<String, Object> outPutParams) {
 			String sname = clazz.getSimpleName();
 			String fieldName = StringUtils.lowerCase(StringUtils.substring(sname, 0, 1))+StringUtils.substring(sname, 1);
@@ -143,8 +165,8 @@ public class DefaultManager2Controller {
 			return fv;
 		}
 		
-		//Æ´×°·½·¨ĞÅÏ¢
-		public void buildClassMethod(ClassWriter cw, Class clazz,List<Map<String, Object>> classMethods, Map<String, Object> outPutParams) {
+		//æ‹¼è£…æ–¹æ³•ä¿¡æ¯
+		public void buildClassMethod(ClassWriter cw, Class clazz,List<Map<String, Object>> classMethods, Map<String, Object> outPutParams,ClassNode classNode) {
 			String fieldName = (String) outPutParams.get(kFiedlName);
 			String fieldDesc = (String) outPutParams.get(kFieldDesc);
 			String fullInterfaceName = (String) outPutParams.get(kFullInterfaceName);
@@ -154,17 +176,29 @@ public class DefaultManager2Controller {
 			for (Method method : clazz.getDeclaredMethods()) {
 				methodMap.put(method.getName()+":"+Type.getMethodDescriptor(method), method);
 			}
+			for (MethodNode methodNode : classNode.methods) {
+				String mName = methodNode.name;
+				if (mName.contains("<") || mName.equals(classNode.name) ||
+						mName.startsWith("set") || 
+						mName.equals("get")) {//åˆå§‹åŒ–æ–¹æ³•ï¼Œæ„é€ æ–¹æ³•ï¼Œstatic,setter,getter
+					continue;
+				}		
+			}
+			
 			
 			for (Map<String, Object> classMethod : classMethods) {
 				String mName = (String)classMethod.get(ClassPrinter.pname);
-				if (mName.contains("<") || mName.equals(clazz.getSimpleName())) {//³õÊ¼»¯º¯Êı ¹¹Ôìº¯Êı
+				if (mName.contains("<") || mName.equals(clazz.getSimpleName()) ||
+						mName.startsWith("set") || 
+						mName.equals("get")) {//åˆå§‹åŒ–æ–¹æ³•ï¼Œæ„é€ æ–¹æ³•ï¼Œstatic,setter,getter
 					continue;
 				}
 				
 				String mDesc = (String)classMethod.get(ClassPrinter.pdesc);
-				boolean returnFlag = mDesc.contains(")V") ? false : true;//ÊÇ·ñÓĞ·µ»Ø
+				boolean returnFlag = mDesc.contains(")V") ? false : true;//æ˜¯å¦æœ‰è¿”å›
 				Method method = methodMap.get(mName+":"+mDesc);
-				if (!Modifier.isPublic(method.getModifiers())) {//·Çpublic·½·¨£¬²»´¦Àí
+				if (!Modifier.isPublic(method.getModifiers()) ||
+						Modifier.isStatic(method.getModifiers())) {//épublic,static
 					continue;
 				}
 				
@@ -214,19 +248,24 @@ public class DefaultManager2Controller {
 					
 					
 				mv.visitCode();
-				//×Ö¶Îµ÷ÓÃÂß¼­
+				//äºšæ ˆthis
+				Label l0 = new Label();
+				mv.visitLabel(l0);
 				mv.visitVarInsn(ALOAD, 0);//this
-				if (mName.startsWith("set")) {
-					mv.visitVarInsn(ALOAD, 1);
-					mv.visitFieldInsn(PUTFIELD, fullImplName, fieldName, fieldDesc);
-				}else {
+				Label l1 = new Label();
+				mv.visitLabel(l1);
+				mv.visitLocalVariable("this", Type.getDescriptor(clazz), Type.getDescriptor(clazz), l0, l1, 0);
+//				if (mName.startsWith("set")) {
+//					mv.visitVarInsn(ALOAD, 1);
+//					mv.visitFieldInsn(PUTFIELD, fullImplName, fieldName, fieldDesc);
+//				}else {
 					mv.visitFieldInsn(GETFIELD, fullImplName, fieldName, fieldDesc);//fieldName
-					//Èë²ÎÃèÊö·û·Ö¸î
+					//äºšæ ˆå…¥å‚
 					buildMethodVisitorArgs(mv, mDesc,method);
 					mv.visitMethodInsn(INVOKEINTERFACE, fullInterfaceName, mName, mDesc, true);//mName
-				}
+//				}
 
-//				mv.visitVarInsn(ALOAD, 1);//Èë²Î1
+//				mv.visitVarInsn(ALOAD, 1);//ï¿½ï¿½ï¿½1
 				/**
 				for (Method mh : RobbService.class.getDeclaredMethods()) {
 					System.out.println("--"+Type.getMethodDescriptor(mh));
@@ -238,38 +277,37 @@ public class DefaultManager2Controller {
 				*/
 //				mv.visitLocalVariable("name", "Ljava/lang/String;", null, start, end, 1);
 				buildParameterAnnotation(mv, method);
-				mv.visitInsn(returnFlag?ARETURN:RETURN);
+				mv.visitInsn(buildMethodReturnCode(method));
 				mv.visitMaxs(3, 1);
 				mv.visitEnd();
 			}
 		}
 		
 		  /**
-		   * Èë²ÎÃèÊö·û·Ö¸î
-		   *  ÎÒÃÇÖªµÀJAVAÀàĞÍ·ÖÎª»ù±¾ÀàĞÍºÍÒıÓÃÀàĞÍ£¬ÔÚJVMÖĞ¶ÔÃ¿Ò»ÖÖÀàĞÍ¶¼ÓĞÓëÖ®Ïà¶ÔÓ¦µÄÀàĞÍÃèÊö£¬ÈçÏÂ±í£º
-		   JavaÀàĞÍ---------------JVMÖĞµÄÃèÊö
-		   boolean----------------Z--------------------------iload
-		   char---------------------C--------------------------iload
-		   byte---------------------B--------------------------iload
-		   short--------------------S--------------------------iload
-		   int------------------------I--------------------------iload
-		   float---------------------F--------------------------fload
-		   long---------------------J--------------------------lload
-		   double------------- ----D-------------------------dload
-		   Object-----------------Ljava/lang/Object;------aload
-		   int----------------------[I------------------------  -aload
-		   Object-----------------[[Ljava/lang/Object;----aload
+		   * 
+		   Javaå¯¹è±¡---------------JVMæ ‡è¯†------------------jvmæŒ‡ä»¤</p>
+		   boolean----------------Z--------------------------iload</p>
+		   char---------------------C--------------------------iload</p>
+		   byte---------------------B--------------------------iload</p>
+		   short--------------------S--------------------------iload</p>
+		   int------------------------I--------------------------iload</p>
+		   float---------------------F--------------------------fload</p>
+		   long---------------------J--------------------------lload</p>
+		   double------------- ----D-------------------------dload</p>
+		   Object-----------------Ljava/lang/Object;------aload</p>
+		   int[]----------------------[I------------------------  -aload</p>
+		   Object[][]-----------------[[Ljava/lang/Object;----aload</p>
        */
 		private static  void buildMethodVisitorArgs(MethodVisitor mv,String methodArgsDesc,Method method) {
 			methodArgsDesc = Type.getMethodDescriptor(method);
-			if (methodArgsDesc.startsWith("()")) {//ÎŞ²ÎÊı
+			if (methodArgsDesc.startsWith("()")) {//æ— å‚æ•°
 				return ;
 			}
 			String argsDesc = StringUtils.substringBefore(StringUtils.substringAfter(methodArgsDesc, "("), ")");
 			
 			String[] args = StringUtils.split(argsDesc,';');
 			List<Integer> loadList = new LinkedList<Integer>();
-			boolean skip = false;//Ìø¹ı±êÊ¶
+			boolean skip = false;//é‡åˆ°[åç»­è·³è¿‡
 			for (int i = 0; i < args.length; i++) {
 				for (char ch : args[i].toCharArray()) {
 					System.out.println("-------------"+ch+"---"+skip);
@@ -342,20 +380,54 @@ public class DefaultManager2Controller {
 				}
 			}
 			
-			//ÑÇÕ»Èë²ÎÖ¸Áî
+			//äºšæ ˆå…¥å‚
 			int loadNum = 1;
+			Label bL = new Label();
+			Label eL = null;
 			for (Integer loadOpcode : loadList) {
 				System.out.println(loadOpcode+"-----------"+loadNum);
 //				if (loadNum == 8) {
 //					loadNum++;
 //				}
+				mv.visitLabel(bL);
 				mv.visitVarInsn(loadOpcode, loadNum++);
+				eL = new Label();
+				mv.visitLabel(eL);
+				mv.visitLocalVariable(arg0, arg1, arg2, bL, eL, loadNum);
+				bL = eL;
 			}
 			
 		}
 		
+		//æ–¹æ³•è¿”å›code
+		private static int buildMethodReturnCode(Method method) {
+			String methodArgsDesc = Type.getMethodDescriptor(method);
+			if (methodArgsDesc.contains(")V")) {//æ— å‚æ•°
+				return Opcodes.RETURN;
+			}
+			char key = StringUtils.substringAfter(methodArgsDesc, ")").charAt(0);
+			switch (key) {
+			case 'Z':
+			case 'C':
+			case 'B':
+			case 'S':
+			case 'I':
+				return Opcodes.IRETURN;
+			case 'F':
+				return Opcodes.FRETURN;
+			case 'J':
+				return Opcodes.LRETURN;
+			case 'D':
+				return Opcodes.DRETURN;
+			case 'L':
+			case '[':
+				return Opcodes.ARETURN;
+			default:
+				throw new IllegalArgumentException("deal methodArgsDesc["+methodArgsDesc+"] err:"+key);
+			}
+		}
 		/**
-		 * Æ´×°·½·¨×¢½â
+		 * æ‹¼è£…æ–¹æ³•æ³¨è§£
 		 * */
 		private static  void buildMethodAnnotation(MethodVisitor mv, Method method) {
 			Annotation[] annotations = method.getAnnotations();
@@ -364,8 +436,8 @@ public class DefaultManager2Controller {
 			}
 			
 			for (Annotation methodAnnotation : annotations) {
-				//paramAnnotation Îª×¢½â´úÀí class com.sun.proxy.$Proxy11
-				   //paramAnnotation.annotationType() ÎªÔ­Ê¼×¢½â
+				//annotationObj ä¸ºä»£ç†å¯¹è±¡ class com.sun.proxy.$Proxy11
+				   //annotationObj.annotationType()ä¸ºçœŸå®æ³¨è§£
 					Class orgAnnotation = methodAnnotation.annotationType();
 					AnnotationVisitor aVisitor = mv.visitAnnotation(Type.getDescriptor(orgAnnotation), true);
 					buildAnnotation(aVisitor, methodAnnotation);
@@ -373,7 +445,7 @@ public class DefaultManager2Controller {
 			}
 		}
 		/**
-		 * Æ´×°·½·¨²ÎÊıÃû³Æ£¬²ÎÊı×¢½â£¬·½·¨×¢½â
+		 * æ‹¼è£…å‚æ•°æ³¨è§£
 		 * */
 		private static  void buildParameterAnnotation(MethodVisitor mv, Method method) {
 			Parameter[] parameters = method.getParameters();
@@ -386,16 +458,14 @@ public class DefaultManager2Controller {
 				if (!parameter.isNamePresent()) {
 					throw new IllegalArgumentException("please use JDK8 compile [-parameters]");
 				}
-				//Ìí¼Ó²ÎÊıÃû³Æ
-				mv.visitParameter(parameter.getName(), Opcodes.ACC_MANDATED);
+				//å‚æ•°åç§°
+				//mv.visitParameter(parameter.getName(), Opcodes.ACC_MANDATED);
 				
-				//Ìí¼Ó²ÎÊı×¢½â Ä¬ÈÏÖ»ÓĞÒ»¸ö×¢½â
-//				AnnotatedType paramAnnotated = parameter.getAnnotatedType();
 				Annotation[] paramAnnotations = parameter.getAnnotations();
 				if (ArrayUtils.isNotEmpty(paramAnnotations)) {
 					for (Annotation paramAnnotation : paramAnnotations) {
-						//paramAnnotation Îª×¢½â´úÀí class com.sun.proxy.$Proxy11
-					   //paramAnnotation.annotationType() ÎªÔ­Ê¼×¢½â
+						//annotationObj ä¸ºä»£ç†å¯¹è±¡ class com.sun.proxy.$Proxy11
+						   //annotationObj.annotationType()ä¸ºçœŸå®æ³¨è§£
 						Class orgAnnotation = paramAnnotation.annotationType();
 						AnnotationVisitor paramVisitor = mv.visitParameterAnnotation(pindex, Type.getDescriptor(orgAnnotation), true);
 						buildAnnotation(paramVisitor, paramAnnotation);
@@ -405,12 +475,12 @@ public class DefaultManager2Controller {
 			}
 		}
 		/**
-		 * Æ´×°×¢½â¶ÔÏó
+		 * æ§‹å»ºè¨»è§£å°è±¡
 		 * */
 		private static void buildAnnotation(AnnotationVisitor annotationVisitor,Annotation annotationObj) {
 
-			//paramAnnotation Îª×¢½â´úÀí class com.sun.proxy.$Proxy11
-			   //paramAnnotation.annotationType() ÎªÔ­Ê¼×¢½â
+			//annotationObj ä¸ºä»£ç†å¯¹è±¡ class com.sun.proxy.$Proxy11
+			   //annotationObj.annotationType()ä¸ºçœŸå®æ³¨è§£
 				Class orgAnnotation = annotationObj.annotationType();
 				for (Method paramAnnMethod : orgAnnotation.getDeclaredMethods()) {
 					try {
@@ -441,14 +511,14 @@ public class DefaultManager2Controller {
 				}
 		}
 		
-		/**Ìí¼Ó×¢½â×Ö¶Î*/
+		/**æ·»åŠ è¨»è§£å­—æ®µ*/
 		private static void buildAnnotationAddField(AnnotationVisitor annotationVisitor,String field, Object val) {
 			if (val.getClass().isEnum()) {
 				annotationVisitor.visitEnum(field, Type.getDescriptor(val.getClass()), val.toString());
 			}else if (val instanceof String && 
 					(StringUtils.isBlank((String)val) ||
 							StringUtils.equals(ValueConstants.DEFAULT_NONE, (CharSequence) val))) {
-				//string ²»´¦ÀíÇé¿ö
+				//string ç‚ºç©ºä¸è™•ç†
 			}else {
 				annotationVisitor.visit(field, val);
 			}

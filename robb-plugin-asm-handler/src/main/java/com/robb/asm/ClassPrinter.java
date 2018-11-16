@@ -5,16 +5,17 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import jdk.internal.org.objectweb.asm.AnnotationVisitor;
+import jdk.internal.org.objectweb.asm.ClassVisitor;
+import jdk.internal.org.objectweb.asm.FieldVisitor;
+import jdk.internal.org.objectweb.asm.MethodVisitor;
+import jdk.internal.org.objectweb.asm.Opcodes;
+import jdk.internal.org.objectweb.asm.TypePath;
+
 import org.apache.commons.lang3.ArrayUtils;
-import org.objectweb.asm.AnnotationVisitor;
-import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.FieldVisitor;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.TypePath;
 
 /**
- * 获取接口class 文件信息，
+ * 锟斤拷取锟接匡拷class 锟侥硷拷锟斤拷息锟斤拷
  * */
 public class ClassPrinter extends ClassVisitor {
 
@@ -40,13 +41,11 @@ public class ClassPrinter extends ClassVisitor {
 		this.sysout =sysout;
 	}
 
+	/**
+	 * @param sysout 鏄惁杈撳嚭鍐呴儴鏃ュ織
+	 * */
 	public static ClassPrinter getNewPrinter(boolean sysout) {
-//		if (interfaceClass.isInterface()) {
-//			return new ClassPrinter();
-//		}
 		return new ClassPrinter(sysout);
-
-//		throw new IllegalArgumentException(interfaceClass+"must be Interface class");
 	}
 
 	@Override
