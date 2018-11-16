@@ -166,7 +166,7 @@ public class DefaultManager2Controller {
 		}
 		
 		//拼装方法信息
-		public void buildClassMethod(ClassWriter cw, Class clazz,List<Map<String, Object>> classMethods, Map<String, Object> outPutParams,ClassNode classNode) {
+		public void buildClassMethod(ClassWriter cw, Class clazz,List<Map<String, Object>> classMethods, Map<String, Object> outPutParams) {
 			String fieldName = (String) outPutParams.get(kFiedlName);
 			String fieldDesc = (String) outPutParams.get(kFieldDesc);
 			String fullInterfaceName = (String) outPutParams.get(kFullInterfaceName);
@@ -176,15 +176,6 @@ public class DefaultManager2Controller {
 			for (Method method : clazz.getDeclaredMethods()) {
 				methodMap.put(method.getName()+":"+Type.getMethodDescriptor(method), method);
 			}
-			for (MethodNode methodNode : classNode.methods) {
-				String mName = methodNode.name;
-				if (mName.contains("<") || mName.equals(classNode.name) ||
-						mName.startsWith("set") || 
-						mName.equals("get")) {//初始化方法，构造方法，static,setter,getter
-					continue;
-				}		
-			}
-			
 			
 			for (Map<String, Object> classMethod : classMethods) {
 				String mName = (String)classMethod.get(ClassPrinter.pname);
@@ -393,7 +384,7 @@ public class DefaultManager2Controller {
 				mv.visitVarInsn(loadOpcode, loadNum++);
 				eL = new Label();
 				mv.visitLabel(eL);
-				mv.visitLocalVariable(arg0, arg1, arg2, bL, eL, loadNum);
+//				mv.visitLocalVariable(arg0, arg1, arg2, bL, eL, loadNum);
 				bL = eL;
 			}
 			
@@ -521,6 +512,26 @@ public class DefaultManager2Controller {
 				//string 為空不處理
 			}else {
 				annotationVisitor.visit(field, val);
+			}
+		}
+		
+		//拼装方法信息
+		public void buildClassMethod4Node(ClassWriter cw, Class clazz,List<Map<String, Object>> classMethods, Map<String, Object> outPutParams,ClassNode classNode) {
+			for (MethodNode methodNode : classNode.methods) {
+				String mName = methodNode.name;
+				if (mName.contains("<") || mName.equals(classNode.name) ||
+						mName.startsWith("set") || 
+						mName.equals("get")) {//初始化方法，构造方法，static,setter,getter
+					continue;
+				}		
+				
+				String mDesc = methodNode.desc;
+				boolean returnFlag = mDesc.contains(")V") ? false : true;//是否有返回
+				if (!Modifier.isPublic(methodNode.access) ||
+						Modifier.isStatic(methodNode.access)) {//非public,static
+					continue;
+				}
+				
 			}
 		}
 		
