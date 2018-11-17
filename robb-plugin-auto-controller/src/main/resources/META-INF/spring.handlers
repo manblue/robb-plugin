@@ -1,1 +1,1 @@
-http\://www.springframework.org/schema/autocontroller=com.robb.namespace.handler.AutoControNamespaceHandler
+http\://local/schema/autocontroller=com.robb.namespace.handler.AutoControNamespaceHandler
