@@ -1,5 +1,6 @@
 package com.robb.asm;
 
+import java.awt.peer.TrayIconPeer;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -7,6 +8,8 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -20,11 +23,13 @@ import jdk.internal.org.objectweb.asm.Label;
 import jdk.internal.org.objectweb.asm.MethodVisitor;
 import jdk.internal.org.objectweb.asm.Opcodes;
 import jdk.internal.org.objectweb.asm.Type;
+import jdk.internal.org.objectweb.asm.tree.AnnotationNode;
 import jdk.internal.org.objectweb.asm.tree.ClassNode;
 import jdk.internal.org.objectweb.asm.tree.LocalVariableNode;
 import jdk.internal.org.objectweb.asm.tree.MethodNode;
 import jdk.internal.org.objectweb.asm.tree.ParameterNode;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -59,7 +64,6 @@ public class DefaultManager2Controller {
 				throw new IllegalArgumentException(" this plugin only support Manager layer!");
 			}
 			InterfaceHandler4Asm handler4Asm = new InterfaceHandler4Asm(managerClass.getClassLoader());
-			//��ȡ���ǩ����Ϣ
 			ClassPrinter printer = ClassPrinter.getNewPrinter(true);
 //			InputStream is = managerClass.getClassLoader().getSystemResourceAsStream(managerClass.getName().replace(".", "/")+".class");
 			ClassReader cReader = new ClassReader(is);
@@ -67,25 +71,40 @@ public class DefaultManager2Controller {
 
 			ClassNode node = new ClassNode();
 			cReader.accept(node, ClassReader.EXPAND_FRAMES);
+			//-------------------------------test------------------------------------------
 			List<MethodNode> list = node.methods;
+			System.out.println("-------------------------name:"+node.name+"-signature:"+node.signature);
+
 			for (MethodNode methodNode : list) {
 				List<ParameterNode> pNodes = methodNode.parameters;
 				for (LocalVariableNode lvNode : methodNode.localVariables) {
 					System.out.println("-methodName:"+methodNode.name+"-index:"+lvNode.index+"-name:"+lvNode.name+"-desc:"+lvNode.desc);
 				}
+				List<AnnotationNode> list2 = methodNode.visibleAnnotations;
+				if (CollectionUtils.isEmpty(list2)) {
+					continue;
+				}
+				for (AnnotationNode annotationNode : list2) {
+					System.out.println("---buildAnnotation4Node:desc:"+annotationNode.desc+"-getClass:"+annotationNode.getClass());
+				}
 				System.out.println("-------------------------");
 			}
-			
+			//-----------------------------test end----------------------------------------
 			Map<String, Object> outPutParams = new HashMap<String, Object>();
 			outPutParams.put(kInterfaceName, managerClass.getSimpleName());
 			outPutParams.put(kFullInterfaceName, managerClass.getName().replace('.', '/'));
 			outPutParams.put(kImplName, managerClass.getSimpleName()+"Impl");
 			
-			Type.getDescriptor(managerClass);
 			ClassWriter cw = handler4Asm.buildClassHead(managerClass,outPutParams);
-			handler4Asm.buildClassField(cw, managerClass,outPutParams);
-			handler4Asm.buildClassMethod(cw,managerClass, printer.getVisitMethods(),outPutParams);
+//			handler4Asm.buildClassField(cw, managerClass,outPutParams);
+//			handler4Asm.buildClassMethod(cw,managerClass, printer.getVisitMethods(),outPutParams);
+			
+			handler4Asm.buildClassField4Node(cw, managerClass, outPutParams, node);
+			handler4Asm.buildClassMethod4Node(cw, managerClass, printer.getVisitMethods(), outPutParams, node);
+			
 			cw.visitEnd();
+			
+			
 			//输出class文件
 			byte[] code = cw.toByteArray();
 			FileOutputStream fos = null;
@@ -252,7 +271,7 @@ public class DefaultManager2Controller {
 //				}else {
 					mv.visitFieldInsn(GETFIELD, fullImplName, fieldName, fieldDesc);//fieldName
 					//亚栈入参
-					buildMethodVisitorArgs(mv, mDesc,method);
+					buildMethodVisitorArgs(mv, mDesc);
 					mv.visitMethodInsn(INVOKEINTERFACE, fullInterfaceName, mName, mDesc, true);//mName
 //				}
 
@@ -268,7 +287,7 @@ public class DefaultManager2Controller {
 				*/
 //				mv.visitLocalVariable("name", "Ljava/lang/String;", null, start, end, 1);
 				buildParameterAnnotation(mv, method);
-				mv.visitInsn(buildMethodReturnCode(method));
+				mv.visitInsn(buildMethodReturnCode(Type.getMethodDescriptor(method)));
 				mv.visitMaxs(3, 1);
 				mv.visitEnd();
 			}
@@ -289,11 +308,49 @@ public class DefaultManager2Controller {
 		   int[]----------------------[I------------------------  -aload</p>
 		   Object[][]-----------------[[Ljava/lang/Object;----aload</p>
        */
-		private static  void buildMethodVisitorArgs(MethodVisitor mv,String methodArgsDesc,Method method) {
-			methodArgsDesc = Type.getMethodDescriptor(method);
+		private static  void buildMethodVisitorArgs(MethodVisitor mv,String methodArgsDesc) {
+//			methodArgsDesc = Type.getMethodDescriptor(method);
 			if (methodArgsDesc.startsWith("()")) {//无参数
 				return ;
 			}
+
+			List<Integer> loadList = buildMethodArgsLoads(methodArgsDesc);
+			
+			//亚栈入参
+			int loadNum = 1;
+			Label bL = new Label();
+			Label eL = null;
+			for (Integer loadOpcode : loadList) {
+				System.out.println(loadOpcode+"-----------"+loadNum);
+//				if (loadNum == 8) {
+//					loadNum++;
+//				}
+				mv.visitLabel(bL);
+				mv.visitVarInsn(loadOpcode, loadNum++);
+				eL = new Label();
+				mv.visitLabel(eL);
+//				mv.visitLocalVariable(arg0, arg1, arg2, bL, eL, loadNum);
+				bL = eL;
+			}
+			
+		}
+		
+		  /**
+		   * 
+		   Java对象---------------JVM标识------------------jvm指令</p>
+		   boolean----------------Z--------------------------iload</p>
+		   char---------------------C--------------------------iload</p>
+		   byte---------------------B--------------------------iload</p>
+		   short--------------------S--------------------------iload</p>
+		   int------------------------I--------------------------iload</p>
+		   float---------------------F--------------------------fload</p>
+		   long---------------------J--------------------------lload</p>
+		   double------------- ----D-------------------------dload</p>
+		   Object-----------------Ljava/lang/Object;------aload</p>
+		   int[]----------------------[I------------------------  -aload</p>
+		   Object[][]-----------------[[Ljava/lang/Object;----aload</p>
+     */
+		private static  List<Integer> buildMethodArgsLoads(String methodArgsDesc) {
 			String argsDesc = StringUtils.substringBefore(StringUtils.substringAfter(methodArgsDesc, "("), ")");
 			
 			String[] args = StringUtils.split(argsDesc,';');
@@ -370,29 +427,11 @@ public class DefaultManager2Controller {
 					}
 				}
 			}
-			
-			//亚栈入参
-			int loadNum = 1;
-			Label bL = new Label();
-			Label eL = null;
-			for (Integer loadOpcode : loadList) {
-				System.out.println(loadOpcode+"-----------"+loadNum);
-//				if (loadNum == 8) {
-//					loadNum++;
-//				}
-				mv.visitLabel(bL);
-				mv.visitVarInsn(loadOpcode, loadNum++);
-				eL = new Label();
-				mv.visitLabel(eL);
-//				mv.visitLocalVariable(arg0, arg1, arg2, bL, eL, loadNum);
-				bL = eL;
-			}
-			
+			return loadList;
 		}
-		
 		//方法返回code
-		private static int buildMethodReturnCode(Method method) {
-			String methodArgsDesc = Type.getMethodDescriptor(method);
+		private static int buildMethodReturnCode(String methodArgsDesc) {
+//			String methodArgsDesc = Type.getMethodDescriptor(method);
 			if (methodArgsDesc.contains(")V")) {//无参数
 				return Opcodes.RETURN;
 			}
@@ -515,9 +554,28 @@ public class DefaultManager2Controller {
 			}
 		}
 		
+		//拼装字段信息
+		public FieldVisitor buildClassField4Node(ClassWriter cw,Class clazz, Map<String, Object> outPutParams,  ClassNode classNode) {
+			String sname = StringUtils.substringAfterLast(classNode.name, separator);
+			String fieldName = StringUtils.lowerCase(StringUtils.substring(sname, 0, 1))+StringUtils.substring(sname, 1);
+			String fieldDesc = "L"+classNode.name+";";
+			outPutParams.put(kFiedlName, fieldName);
+			outPutParams.put(kFieldDesc, fieldDesc);
+			FieldVisitor fv = cw.visitField(Opcodes.ACC_PRIVATE, fieldName,fieldDesc, classNode.signature, null);
+			
+			fv.visitAnnotation("Lorg/springframework/beans/factory/annotation/Autowired;", true);
+			fv.visitEnd();
+			return fv;
+		}
+		
 		//拼装方法信息
 		public void buildClassMethod4Node(ClassWriter cw, Class clazz,List<Map<String, Object>> classMethods, Map<String, Object> outPutParams,ClassNode classNode) {
+			String fieldName = (String) outPutParams.get(kFiedlName);
+			String fieldDesc = (String) outPutParams.get(kFieldDesc);
+			String fullInterfaceName = (String) outPutParams.get(kFullInterfaceName);
+			String fullImplName = (String) outPutParams.get(kFullImplName);
 			for (MethodNode methodNode : classNode.methods) {
+				System.out.println("---method.name:"+methodNode.name+"-desc:"+methodNode.desc);
 				String mName = methodNode.name;
 				if (mName.contains("<") || mName.equals(classNode.name) ||
 						mName.startsWith("set") || 
@@ -532,7 +590,146 @@ public class DefaultManager2Controller {
 					continue;
 				}
 				
+				MethodVisitor mv = cw.visitMethod(ACC_PUBLIC + (returnFlag ? ACC_VARARGS:0), 
+						mName, 
+						mDesc, 
+						methodNode.signature, 
+						methodNode.exceptions == null?null:methodNode.exceptions.toArray(new String[methodNode.exceptions.size()] ));
+				
+				//TODO
+				buildMethodAnnotation4Node(mv, methodNode);
+				mv.visitCode();
+				//亚栈this
+				Label l0 = new Label();
+				mv.visitLabel(l0);
+				mv.visitLineNumber(0, l0);
+				mv.visitVarInsn(ALOAD, 0);//this
+				mv.visitFieldInsn(GETFIELD, fullImplName, fieldName, "L"+classNode.name+";");//fieldName
+					//亚栈入参
+				//buildMethodVisitorArgs(mv, mDesc);
+				Label l1 = buildMethodVisitorArgs4Node(mv, methodNode, l0);
+				mv.visitLocalVariable("this",Type.getDescriptor(clazz) , Type.getDescriptor(clazz), l0, l1, 0);
+				mv.visitMethodInsn(INVOKEINTERFACE, fullInterfaceName, mName, mDesc, true);//mName
+
+
+				buildParameterAnnotation4Node(mv, methodNode);
+				mv.visitInsn(buildMethodReturnCode(methodNode.desc));
+				mv.visitMaxs(3, 1);
+				mv.visitEnd();
 			}
+		}
+		
+		/**
+		 * 拼装方法注解
+		 * */
+		private static  void buildMethodAnnotation4Node(MethodVisitor mv, MethodNode methodNode) {
+			List<AnnotationNode> methodAnnNodes = methodNode.visibleAnnotations;
+			if (CollectionUtils.isEmpty(methodAnnNodes)) {
+				return;
+			}
+			
+			for (AnnotationNode annotationNode : methodAnnNodes) {
+				AnnotationVisitor aVisitor = mv.visitAnnotation(annotationNode.desc, true);
+				buildAnnotation4Node(aVisitor, annotationNode);
+				annotationNode.accept(aVisitor);
+				aVisitor.visitEnd();
+			}
+		}
+		
+		/**
+		 * 拼装参数注解
+		 * */
+		private static  void buildParameterAnnotation4Node(MethodVisitor mv, MethodNode methodNode) {
+			
+			//methodNode.parameters 不可用
+//			List<ParameterNode> parameters = methodNode.parameters;
+//			if (CollectionUtils.isEmpty(parameters)) {
+//				return ;
+//			}
+			
+			List<AnnotationNode>[] parameterAnnotations = methodNode.visibleParameterAnnotations;
+			if (ArrayUtils.isEmpty(parameterAnnotations)) {
+				return ;
+			}
+			
+			int pindex = 0;
+			for (List<AnnotationNode> list : parameterAnnotations) {
+				if (CollectionUtils.isEmpty(list)) {
+					continue;
+				}
+				for (AnnotationNode annotationNode : list) {
+					AnnotationVisitor paramVisitor = mv.visitParameterAnnotation(pindex, annotationNode.desc, true);
+					annotationNode.accept(paramVisitor);
+//					buildAnnotation(paramVisitor, paramAnnotation);
+					paramVisitor.visitEnd();
+				}
+				pindex ++;
+			}
+			
+		}
+		
+		/**
+		 * 構建註解對象
+		 * */
+		private static void buildAnnotation4Node(AnnotationVisitor annotationVisitor,AnnotationNode annotationNode) {
+
+			//annotationObj 为代理对象 class com.sun.proxy.$Proxy11
+			   //annotationObj.annotationType()为真实注解
+			System.out.println("---buildAnnotation4Node:desc:"+annotationNode.desc+"-getClass:"+annotationNode.getClass());
+			
+		
+		}
+
+		private static  Label buildMethodVisitorArgs4Node(MethodVisitor mv,MethodNode methodNode,Label lable) {
+//			buildMethodVisitorArgs(mv, methodNode.desc);
+			Label l1 = new Label();
+			mv.visitLabel(l1);
+			mv.visitLineNumber(10, l1);
+			String methodArgsDesc = methodNode.desc;
+			if (methodArgsDesc.startsWith("()")) {//无参数
+				return l1;
+			}
+			List<Integer> loadList = buildMethodArgsLoads(methodNode.desc);
+			
+			int paramNum = methodNode.visibleParameterAnnotations.length;
+			List<LocalVariableNode> localVariables = methodNode.localVariables;
+			//亚栈入参
+			int line = 1;
+			int loadNum = 1;
+//			Label bL = new Label();
+//			Label eL = null;
+			for (Integer loadOpcode : loadList) {
+				System.out.println(loadOpcode+"-----------"+loadNum);
+//				if (loadNum == 8) {
+//					loadNum++;
+//				}
+//				mv.visitLabel(bL);
+				if (loadNum < 5) {
+					line = loadNum + 3;
+				}else {
+					line = 7 + (loadNum - 4) * 2;
+				}
+//				mv.visitLineNumber(line, bL);
+				mv.visitVarInsn(loadOpcode, loadNum);
+//				eL = new Label();
+//				mv.visitLabel(eL);
+//				LocalVariableNode node = localVariables.get(loadNum);
+//				System.out.println("--name:"+node.name+"--desc:"+node.desc+"--signature:"+node.signature);
+//
+//				mv.visitLocalVariable(node.name, node.desc, node.signature, bL, eL, loadNum);
+//				bL = eL;
+				loadNum++;
+			}
+			
+
+//			mv.visitLocalVariable("this",Type.getDescriptor(clazz) , Type.getDescriptor(clazz), l0, l1, 0);
+			for (int i = 1; i <= paramNum; i++) {
+				LocalVariableNode node = localVariables.get(i);
+				System.out.println("--name:"+node.name+"--desc:"+node.desc+"--signature:"+node.signature);
+
+				mv.visitLocalVariable(node.name, node.desc, node.signature, lable, l1, i);
+			}
+			return l1;
 		}
 		
 		public final Class<?> defineClazz(String name, byte[] b, int off, int len)
