@@ -1,6 +1,5 @@
 package com.robb.asm;
 
-import java.awt.peer.TrayIconPeer;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -8,8 +7,6 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -103,7 +100,6 @@ public class DefaultManager2Controller {
 			handler4Asm.buildClassMethod4Node(cw, managerClass, printer.getVisitMethods(), outPutParams, node);
 			
 			cw.visitEnd();
-			
 			
 			//输出class文件
 			byte[] code = cw.toByteArray();
