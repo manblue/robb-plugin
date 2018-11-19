@@ -1,20 +1,29 @@
 package com.robb.namespace.config;
 
+import java.io.InputStream;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 import jdk.internal.org.objectweb.asm.Type;
 
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
 import org.springframework.beans.factory.parsing.BeanComponentDefinition;
 import org.springframework.beans.factory.parsing.CompositeComponentDefinition;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.beans.factory.xml.ParserContext;
 import org.springframework.beans.factory.xml.XmlReaderContext;
 import org.springframework.context.annotation.AnnotationConfigUtils;
+import org.springframework.context.annotation.ClassPathBeanDefinitionScanner;
 import org.springframework.context.annotation.ComponentScanBeanDefinitionParser;
 import org.springframework.context.annotation.ScannedGenericBeanDefinition;
+import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.w3c.dom.Element;
 
 import com.robb.annotation.AutoController;
@@ -33,8 +42,14 @@ public class AutoComponentScanBeanDefinitionParser extends ComponentScanBeanDefi
 	
 	@Override
 	public BeanDefinition parse(Element element, ParserContext parserContext) {
+		Object source = parserContext.extractSource(element);
+		
+		String baseController = element.getAttribute(BASE_CONTROLLER);
+		AutoControConfig.setBaseController(baseController);
 		AutoControConfig.addClassAnntoFilter(Type.getDescriptor(AutoController.class));
 		AutoControConfig.addClassAnntoFilter(Type.getDescriptor(Component.class));
+		ClassPathBeanDefinitionScanner scanner = configureScanner(parserContext, element);
+
 		return super.parse(element, parserContext);
 	}
 	
@@ -65,6 +80,11 @@ public class AutoComponentScanBeanDefinitionParser extends ComponentScanBeanDefi
 					Class controClass = Manager2Controller4JdkNode.buildControClass(managerClass,((FileSystemResource)beanDefHolder.getBeanDefinition().getSource()).getInputStream());
 		
 					System.out.println("----"+controClass);
+					//移除注解
+					((ScannedGenericBeanDefinition)beanDefHolder.getBeanDefinition()).getMetadata().getAnnotationTypes().remove(RequestMapping.class.getName());
+					BeanDefinitionHolder nBeanDefHolder = registerBeanDefinition(readerContext.getRegistry(), source, controClass);
+					compositeDef.addNestedComponent(new BeanComponentDefinition(nBeanDefHolder));
+			
 				} catch (Exception e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -87,5 +107,51 @@ public class AutoComponentScanBeanDefinitionParser extends ComponentScanBeanDefi
 		}
 
 		readerContext.fireComponentRegistered(compositeDef);
+	}
+	
+	
+	private BeanDefinitionHolder registerBeanDefinition(
+			BeanDefinitionRegistry registry, Object source,Class clazz) {
+
+		String beanName = StringUtils.lowerCase(clazz.getSimpleName().substring(0, 1)).concat(clazz.getSimpleName().substring(1));
+		DefaultListableBeanFactory beanFactory = unwrapDefaultListableBeanFactory(registry);
+//		if (beanFactory != null) {
+//			if (!(beanFactory.getDependencyComparator() instanceof AnnotationAwareOrderComparator)) {
+//				beanFactory.setDependencyComparator(AnnotationAwareOrderComparator.INSTANCE);
+//			}
+//			if (!(beanFactory.getAutowireCandidateResolver() instanceof ContextAnnotationAutowireCandidateResolver)) {
+//				beanFactory.setAutowireCandidateResolver(new ContextAnnotationAutowireCandidateResolver());
+//			}
+//		}
+
+
+		if (!registry.containsBeanDefinition(beanName)) {
+			RootBeanDefinition def = new RootBeanDefinition(clazz);
+			def.setSource(source);
+			def.setScope(BeanDefinition.SCOPE_SINGLETON);
+			return register(registry, def, beanName);
+		}
+
+		return null;
+	}
+	
+	private static DefaultListableBeanFactory unwrapDefaultListableBeanFactory(BeanDefinitionRegistry registry) {
+		if (registry instanceof DefaultListableBeanFactory) {
+			return (DefaultListableBeanFactory) registry;
+		}
+		else if (registry instanceof GenericApplicationContext) {
+			return ((GenericApplicationContext) registry).getDefaultListableBeanFactory();
+		}
+		else {
+			return null;
+		}
+	}
+	
+	private static BeanDefinitionHolder register(
+			BeanDefinitionRegistry registry, RootBeanDefinition definition, String beanName) {
+
+		definition.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
+		registry.registerBeanDefinition(beanName, definition);
+		return new BeanDefinitionHolder(definition, beanName);
 	}
 }

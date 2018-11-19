@@ -12,7 +12,8 @@ public class AutoControConfig {
 	private static Set<String> classAnntoFilter = new HashSet<String>();
 	/**方法注解过滤*/
 	private static Set<String> methodAnntoFilter = new HashSet<String>();
-	
+	/**baseController*/
+	private static String baseController ;
 	/**
 	 * 添加过滤条件
 	 * @param anntoDesc 
@@ -48,4 +49,14 @@ public class AutoControConfig {
 	public static boolean checkMethodAnntoFilter(String anntoDesc) {
 		return methodAnntoFilter.contains(anntoDesc);
 	}
+
+	public static String getBaseController() {
+		return baseController;
+	}
+
+	public static void setBaseController(String baseController) {
+		AutoControConfig.baseController = baseController;
+	}
+	
+	
 }

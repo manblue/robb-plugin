@@ -38,7 +38,7 @@ import jdk.internal.org.objectweb.asm.tree.MethodNode;
 
 public class Manager2Controller4JdkNode {
 
-	final static String SUPER_NAME = "java/lang/Object";
+	static String SUPER_NAME = "java/lang/Object";
 	/**旧class文件全路径名称 com/ml/example/service/RobbService */
 	final static String O_CLASS_FULL_NAME = "oldClassFullName";
 	/**旧class文件名称*/
@@ -60,6 +60,9 @@ public class Manager2Controller4JdkNode {
 		Class controClass = null;
 
 		try {
+			if (AutoControConfig.getBaseController() != null) {
+				SUPER_NAME = AutoControConfig.getBaseController().replace('.', '/');
+			}
 			//遍历class信息
 			ClassReader classReader = new ClassReader(is);
 			ClassNode classNode = new ClassNode(Opcodes.ASM5);
@@ -77,9 +80,9 @@ public class Manager2Controller4JdkNode {
 			FileOutputStream fos = null;
 			String outFile = managerClass.getResource("/").getPath()+(String) outPutParams.get(N_CLASS_FULL_NAME)+".class";
 			System.out.println("outFile====="+outFile);
-				fos = new FileOutputStream(outFile);
-				fos.write(code);
-				fos.close();
+//				fos = new FileOutputStream(outFile);
+//				fos.write(code);
+//				fos.close();
 
 
 				controClass = handler4Asm.defineClazz(((String) outPutParams.get(N_CLASS_FULL_NAME)).replace('/', '.'), code, 0, code.length);
@@ -142,7 +145,7 @@ public class Manager2Controller4JdkNode {
 			MethodVisitor mv = cw.visitMethod(ACC_PUBLIC,
 					"<init>", "()V", null, null);
 			mv.visitVarInsn(ALOAD, 0);
-			mv.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>", "()V",false);
+			mv.visitMethodInsn(INVOKESPECIAL, SUPER_NAME, "<init>", "()V",false);
 			mv.visitInsn(RETURN);
 			mv.visitMaxs(1, 1);
 			mv.visitEnd();
