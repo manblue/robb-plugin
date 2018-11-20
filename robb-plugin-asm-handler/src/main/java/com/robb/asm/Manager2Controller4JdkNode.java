@@ -17,6 +17,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ValueConstants;
 
@@ -56,7 +57,7 @@ public class Manager2Controller4JdkNode {
 	
 	private final static Logger LOGGER = LoggerFactory.getLogger(Manager2Controller4JdkNode.class);
 
-	public static Class buildControClass(Class managerClass,InputStream is) {
+	public static Class buildControClass(InputStream is) {
 		Class controClass = null;
 
 		try {
@@ -65,10 +66,10 @@ public class Manager2Controller4JdkNode {
 			}
 			//遍历class信息
 			ClassReader classReader = new ClassReader(is);
-			ClassNode classNode = new ClassNode(Opcodes.ASM5);
+			ClassNodeAdapter classNode = new ClassNodeAdapter();
 			classReader.accept(classNode, ClassReader.EXPAND_FRAMES);
 			
-			InterfaceHandler4Asm handler4Asm = new InterfaceHandler4Asm(managerClass.getClassLoader());
+			InterfaceHandler4Asm handler4Asm = new InterfaceHandler4Asm(ClassUtils.getDefaultClassLoader());
 			Map<String, Object> outPutParams = new HashMap<String, Object>();
 			ClassWriter cw = handler4Asm.buildClassHead(classNode,outPutParams);
 			handler4Asm.buildClassField(cw, classNode, outPutParams);
@@ -77,9 +78,9 @@ public class Manager2Controller4JdkNode {
 			
 			//输出class文件
 			byte[] code = cw.toByteArray();
-			FileOutputStream fos = null;
-			String outFile = managerClass.getResource("/").getPath()+(String) outPutParams.get(N_CLASS_FULL_NAME)+".class";
-			System.out.println("outFile====="+outFile);
+//			FileOutputStream fos = null;
+//			String outFile = managerClass.getResource("/").getPath()+(String) outPutParams.get(N_CLASS_FULL_NAME)+".class";
+//			System.out.println("outFile====="+outFile);
 //				fos = new FileOutputStream(outFile);
 //				fos.write(code);
 //				fos.close();
@@ -87,7 +88,24 @@ public class Manager2Controller4JdkNode {
 
 				controClass = handler4Asm.defineClazz(((String) outPutParams.get(N_CLASS_FULL_NAME)).replace('/', '.'), code, 0, code.length);
 
-			
+				//移除原class部分注解
+				for (String  annotationDesc: AutoControConfig.getOClassAnntoFilter()) {
+					classNode.removeAnnotation(annotationDesc);
+				}
+				for (String annotationDesc : AutoControConfig.getOMethodAnntoFilter()) {
+					classNode.removeMethodAnnotation(annotationDesc);
+				}
+				ClassApdater classApdater = new ClassApdater();
+				classNode.accept(classApdater);
+				AutoControConfig.addCache(classNode.name, classApdater.getClassWriter());
+				
+				FileOutputStream fos = null;
+				String outFile = ClassLoader.getSystemClassLoader().getResource("/").getPath()+classNode.name.replace('.', '/')+"1.class";
+				System.out.println("outFile====="+outFile);
+					fos = new FileOutputStream(outFile);
+					fos.write(classApdater.getClassWriter().toByteArray());
+					fos.close();
+				
 		} catch (Exception e) {
 			// TODO: handle exception
 		}finally{

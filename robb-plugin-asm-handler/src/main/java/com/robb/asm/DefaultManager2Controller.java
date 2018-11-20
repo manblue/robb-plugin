@@ -14,6 +14,7 @@ import java.util.Map;
 
 import jdk.internal.org.objectweb.asm.AnnotationVisitor;
 import jdk.internal.org.objectweb.asm.ClassReader;
+import jdk.internal.org.objectweb.asm.ClassVisitor;
 import jdk.internal.org.objectweb.asm.ClassWriter;
 import jdk.internal.org.objectweb.asm.FieldVisitor;
 import jdk.internal.org.objectweb.asm.Label;
@@ -95,7 +96,7 @@ public class DefaultManager2Controller {
 			ClassWriter cw = handler4Asm.buildClassHead(managerClass,outPutParams);
 //			handler4Asm.buildClassField(cw, managerClass,outPutParams);
 //			handler4Asm.buildClassMethod(cw,managerClass, printer.getVisitMethods(),outPutParams);
-			
+
 			handler4Asm.buildClassField4Node(cw, managerClass, outPutParams, node);
 			handler4Asm.buildClassMethod4Node(cw, managerClass, printer.getVisitMethods(), outPutParams, node);
 			
@@ -155,6 +156,9 @@ public class DefaultManager2Controller {
 			buildAnnotation(annotationVisitor, requestMapping);
 			annotationVisitor.visitEnd();
 			
+			ClassVisitor visitor = new ClassVisitor(Opcodes.ASM5) {
+			};
+
 			//默认初始化方法
 			MethodVisitor mv = cw.visitMethod(ACC_PUBLIC,
 					"<init>", "()V", null, null);

@@ -1,7 +1,5 @@
 package com.robb.namespace.config;
 
-import java.io.InputStream;
-import java.util.LinkedHashSet;
 import java.util.Set;
 
 import jdk.internal.org.objectweb.asm.Type;
@@ -11,13 +9,14 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
 import org.springframework.beans.factory.parsing.BeanComponentDefinition;
 import org.springframework.beans.factory.parsing.CompositeComponentDefinition;
+import org.springframework.beans.factory.support.BeanDefinitionReaderUtils;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.beans.factory.xml.ParserContext;
 import org.springframework.beans.factory.xml.XmlReaderContext;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigUtils;
-import org.springframework.context.annotation.ClassPathBeanDefinitionScanner;
 import org.springframework.context.annotation.ComponentScanBeanDefinitionParser;
 import org.springframework.context.annotation.ScannedGenericBeanDefinition;
 import org.springframework.context.support.GenericApplicationContext;
@@ -27,13 +26,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.w3c.dom.Element;
 
 import com.robb.annotation.AutoController;
-import com.robb.asm.DefaultManager2Controller;
 import com.robb.asm.Manager2Controller4JdkNode;
 import com.robb.config.AutoControConfig;
 
 public class AutoComponentScanBeanDefinitionParser extends ComponentScanBeanDefinitionParser{
 
-	
+	private static final String BASE_PACKAGE_ATTRIBUTE = "base-package";
 	private static final String BASE_CONTROLLER = "base-controller";//eg:com.lyc.credit.controllers.BaseController
 	
 	private static final String ANNOTATION_CONFIG_ATTRIBUTE = "annotation-config";
@@ -44,11 +42,18 @@ public class AutoComponentScanBeanDefinitionParser extends ComponentScanBeanDefi
 	public BeanDefinition parse(Element element, ParserContext parserContext) {
 		Object source = parserContext.extractSource(element);
 		
+		String basePackage = element.getAttribute(BASE_PACKAGE_ATTRIBUTE);
+		basePackage = parserContext.getReaderContext().getEnvironment().resolvePlaceholders(basePackage);
+		String[] basePackages = StringUtils.split(basePackage,
+				ConfigurableApplicationContext.CONFIG_LOCATION_DELIMITERS);
+		AutoControConfig.addBasePackages(basePackages);
 		String baseController = element.getAttribute(BASE_CONTROLLER);
 		AutoControConfig.setBaseController(baseController);
 		AutoControConfig.addClassAnntoFilter(Type.getDescriptor(AutoController.class));
 		AutoControConfig.addClassAnntoFilter(Type.getDescriptor(Component.class));
-		ClassPathBeanDefinitionScanner scanner = configureScanner(parserContext, element);
+		AutoControConfig.addOClassAnntoFilter(Type.getDescriptor(AutoController.class));
+		AutoControConfig.addOClassAnntoFilter(Type.getDescriptor(RequestMapping.class));
+		AutoControConfig.addOMethodAnntoFilter(Type.getDescriptor(RequestMapping.class));
 
 		return super.parse(element, parserContext);
 	}
@@ -63,6 +68,7 @@ public class AutoComponentScanBeanDefinitionParser extends ComponentScanBeanDefi
 		CompositeComponentDefinition compositeDef = new CompositeComponentDefinition(element.getTagName(), source);
 
 		for (BeanDefinitionHolder beanDefHolder : beanDefinitions) {
+			//TODO 重写roobeandefinition
 			System.out.println("----"+beanDefHolder.getBeanDefinition().getBeanClassName());
 			System.out.println("----"+beanDefHolder.getBeanDefinition().getSource());
 			
@@ -76,8 +82,8 @@ public class AutoComponentScanBeanDefinitionParser extends ComponentScanBeanDefi
 				System.out.println("------"+beanDefHolder.getBeanDefinition().getBeanClassName()+" is a "+AutoController.class.getSimpleName());
 				
 				try {
-					Class managerClass = Class.forName(beanDefHolder.getBeanDefinition().getBeanClassName(), false, beanDefHolder.getBeanDefinition().getClass().getClassLoader());;
-					Class controClass = Manager2Controller4JdkNode.buildControClass(managerClass,((FileSystemResource)beanDefHolder.getBeanDefinition().getSource()).getInputStream());
+//					Class managerClass = Class.forName(beanDefHolder.getBeanDefinition().getBeanClassName(), false, beanDefHolder.getBeanDefinition().getClass().getClassLoader());;
+					Class controClass = Manager2Controller4JdkNode.buildControClass(((FileSystemResource)beanDefHolder.getBeanDefinition().getSource()).getInputStream());
 		
 					System.out.println("----"+controClass);
 					//移除注解
@@ -85,6 +91,7 @@ public class AutoComponentScanBeanDefinitionParser extends ComponentScanBeanDefi
 					BeanDefinitionHolder nBeanDefHolder = registerBeanDefinition(readerContext.getRegistry(), source, controClass);
 					compositeDef.addNestedComponent(new BeanComponentDefinition(nBeanDefHolder));
 			
+//					BeanDefinitionReaderUtils.registerBeanDefinition(definitionHolder, readerContext.getRegistry());
 				} catch (Exception e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
