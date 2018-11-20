@@ -101,13 +101,14 @@ public class Manager2Controller4JdkNode {
 				
 				FileOutputStream fos = null;
 				String outFile = ClassLoader.getSystemClassLoader().getResource("/").getPath()+classNode.name.replace('.', '/')+"1.class";
-				System.out.println("outFile====="+outFile);
+				LOGGER.info("outFile====={}", outFile);
 					fos = new FileOutputStream(outFile);
 					fos.write(classApdater.getClassWriter().toByteArray());
 					fos.close();
 				
 		} catch (Exception e) {
 			// TODO: handle exception
+			e.printStackTrace();
 		}finally{
 			try {
 				is.close();
@@ -262,7 +263,7 @@ public class Manager2Controller4JdkNode {
 			boolean skip = false;//遇到[后续跳过
 			for (int i = 0; i < args.length; i++) {
 				for (char ch : args[i].toCharArray()) {
-					System.out.println("-------------"+ch+"---"+skip);
+					LOGGER.info("-------------"+ch+"---"+skip);
 					if (ch == 'Z') {
 						if (skip) {
 							skip = false;
