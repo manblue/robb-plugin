@@ -1,10 +1,12 @@
 package com.robb.namespace.config;
 
+import java.lang.reflect.Field;
 import java.util.Set;
 
 import jdk.internal.org.objectweb.asm.Type;
 
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
 import org.springframework.beans.factory.parsing.BeanComponentDefinition;
@@ -22,10 +24,12 @@ import org.springframework.context.annotation.ScannedGenericBeanDefinition;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.w3c.dom.Element;
 
 import com.robb.annotation.AutoController;
+import com.robb.asm.LoadManager;
 import com.robb.asm.Manager2Controller4JdkNode;
 import com.robb.config.AutoControConfig;
 
@@ -90,8 +94,15 @@ public class AutoComponentScanBeanDefinitionParser extends ComponentScanBeanDefi
 					((ScannedGenericBeanDefinition)beanDefHolder.getBeanDefinition()).getMetadata().getAnnotationTypes().remove(RequestMapping.class.getName());
 					BeanDefinitionHolder nBeanDefHolder = registerBeanDefinition(readerContext.getRegistry(), source, controClass);
 					compositeDef.addNestedComponent(new BeanComponentDefinition(nBeanDefHolder));
-			
-//					BeanDefinitionReaderUtils.registerBeanDefinition(definitionHolder, readerContext.getRegistry());
+					Class managerClass = LoadManager.loadManagerByCache(beanDefHolder.getBeanDefinition().getBeanClassName(), ClassUtils.getDefaultClassLoader());
+
+					beanDefHolder = registerBeanDefinition(readerContext.getRegistry(), source, managerClass);
+//					RobbRootBeanDefinition robbBeanDefinition = new RobbRootBeanDefinition( beanDefHolder.getBeanDefinition());
+//					
+//					Field field = beanDefHolder.getClass().getDeclaredField("beanDefinition");
+//					field.setAccessible(true);
+//					field.set(beanDefHolder, robbBeanDefinition);
+					BeanDefinitionReaderUtils.registerBeanDefinition(beanDefHolder, readerContext.getRegistry());
 				} catch (Exception e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -133,12 +144,18 @@ public class AutoComponentScanBeanDefinitionParser extends ComponentScanBeanDefi
 
 
 		if (!registry.containsBeanDefinition(beanName)) {
-			RootBeanDefinition def = new RootBeanDefinition(clazz);
+			RobbRootBeanDefinition def = new RobbRootBeanDefinition(clazz);
 			def.setSource(source);
 			def.setScope(BeanDefinition.SCOPE_SINGLETON);
 			return register(registry, def, beanName);
 		}
 
+		if (AutoControConfig.checkBasePackages(clazz.getName())) {
+			RobbRootBeanDefinition def = new RobbRootBeanDefinition(clazz);
+			def.setSource(source);
+			def.setScope(BeanDefinition.SCOPE_SINGLETON);
+			return register(registry, def, beanName);
+		}
 		return null;
 	}
 	

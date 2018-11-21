@@ -97,14 +97,14 @@ public class Manager2Controller4JdkNode {
 				}
 				ClassApdater classApdater = new ClassApdater();
 				classNode.accept(classApdater);
-				AutoControConfig.addCache(classNode.name, classApdater.getClassWriter());
+				AutoControConfig.addCache(classNode.name.replace('/', '.'), classApdater.getClassWriter());
 				
-				FileOutputStream fos = null;
-				String outFile = ClassLoader.getSystemClassLoader().getResource("/").getPath()+classNode.name.replace('.', '/')+"1.class";
-				LOGGER.info("outFile====={}", outFile);
-					fos = new FileOutputStream(outFile);
-					fos.write(classApdater.getClassWriter().toByteArray());
-					fos.close();
+//				FileOutputStream fos = null;
+//				String outFile = ClassLoader.getSystemClassLoader().getResource("/").getPath()+classNode.name.replace('.', '/')+"1.class";
+//				LOGGER.info("outFile====={}", outFile);
+//					fos = new FileOutputStream(outFile);
+//					fos.write(classApdater.getClassWriter().toByteArray());
+//					fos.close();
 				
 		} catch (Exception e) {
 			// TODO: handle exception
@@ -131,7 +131,7 @@ public class Manager2Controller4JdkNode {
 		//拼装class头信息
 		public ClassWriter buildClassHead(ClassNode classNode,Map<String, Object> outPutParams) {
 			//classNode.name eg:com/robb/manager/RobbManager
-			String controName = classNode.name.replace("Manager", "Controller1").replace("manager", "controller");//java.lang.String
+			String controName = classNode.name.replace("Manager", "Controller").replace("manager", "controller");//java.lang.String
 			String simpleName =  StringUtils.substringAfterLast(controName, separator);
 			
 			outPutParams.put(N_CLASS_FULL_NAME, controName);

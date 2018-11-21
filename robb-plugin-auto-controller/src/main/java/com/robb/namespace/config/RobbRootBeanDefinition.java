@@ -1,8 +1,7 @@
 package com.robb.namespace.config;
 
-import java.io.IOException;
-import java.io.InputStream;
 
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 
 import com.robb.asm.LoadManager;
@@ -10,6 +9,15 @@ import com.robb.config.AutoControConfig;
 
 public class RobbRootBeanDefinition extends RootBeanDefinition {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 3961932610330334037L;
+
+	public RobbRootBeanDefinition(Class beanClass) {
+		super(beanClass);
+	}
+	
 	@Override
 	public Class<?> resolveBeanClass(ClassLoader classLoader)
 			throws ClassNotFoundException {
