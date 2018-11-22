@@ -79,7 +79,8 @@ public class Manager2Controller4JdkNode {
 			//输出class文件
 			byte[] code = cw.toByteArray();
 //			FileOutputStream fos = null;
-//			String outFile = managerClass.getResource("/").getPath()+(String) outPutParams.get(N_CLASS_FULL_NAME)+".class";
+//			String basePath = "D:\\maolong\\DEV\\spring\\.metadata\\.plugins\\org.eclipse.wst.server.core\\tmp1\\wtpwebapps\\robb-web\\WEB-INF\\classes\\";
+//			String outFile = basePath+(String) outPutParams.get(N_CLASS_FULL_NAME)+".class";
 //			System.out.println("outFile====="+outFile);
 //				fos = new FileOutputStream(outFile);
 //				fos.write(code);
@@ -97,10 +98,13 @@ public class Manager2Controller4JdkNode {
 				}
 				ClassApdater classApdater = new ClassApdater();
 				classNode.accept(classApdater);
+//				classReader.accept(classApdater, ClassReader.EXPAND_FRAMES);
+//				code = classApdater.getClassWriter().toByteArray();
+//				Class nManagerClass = handler4Asm.defineClazz(classNode.name.replace('/', '.'), code, 0, code.length);
 				AutoControConfig.addCache(classNode.name.replace('/', '.'), classApdater.getClassWriter());
 				
 //				FileOutputStream fos = null;
-//				String outFile = ClassLoader.getSystemClassLoader().getResource("/").getPath()+classNode.name.replace('.', '/')+"1.class";
+//				 outFile = basePath+classNode.name.replace('.', '/')+"1.class";
 //				LOGGER.info("outFile====={}", outFile);
 //					fos = new FileOutputStream(outFile);
 //					fos.write(classApdater.getClassWriter().toByteArray());

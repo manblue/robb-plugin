@@ -1,6 +1,7 @@
 package com.robb.namespace.config;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Set;
 
 import jdk.internal.org.objectweb.asm.Type;
@@ -89,13 +90,22 @@ public class AutoComponentScanBeanDefinitionParser extends ComponentScanBeanDefi
 //					Class managerClass = Class.forName(beanDefHolder.getBeanDefinition().getBeanClassName(), false, beanDefHolder.getBeanDefinition().getClass().getClassLoader());;
 					Class controClass = Manager2Controller4JdkNode.buildControClass(((FileSystemResource)beanDefHolder.getBeanDefinition().getSource()).getInputStream());
 		
+					Object object1 = controClass.getConstructor(null).newInstance(null);
 					System.out.println("----"+controClass);
 					//移除注解
 					((ScannedGenericBeanDefinition)beanDefHolder.getBeanDefinition()).getMetadata().getAnnotationTypes().remove(RequestMapping.class.getName());
 					BeanDefinitionHolder nBeanDefHolder = registerBeanDefinition(readerContext.getRegistry(), source, controClass);
 					compositeDef.addNestedComponent(new BeanComponentDefinition(nBeanDefHolder));
 					Class managerClass = LoadManager.loadManagerByCache(beanDefHolder.getBeanDefinition().getBeanClassName(), ClassUtils.getDefaultClassLoader());
-
+//					Object object2 = managerClass.getConstructor(null).newInstance(null);
+//					Field field = controClass.getDeclaredField("robbManager");
+//					field.setAccessible(true);
+//					field.set(object1, object2);
+//					
+//					Method method = controClass.getDeclaredMethod("add", new Class[]{String.class});
+//					method.setAccessible(true);
+//					method.invoke(object1, "nihaoo");
+					
 					beanDefHolder = registerBeanDefinition(readerContext.getRegistry(), source, managerClass);
 //					RobbRootBeanDefinition robbBeanDefinition = new RobbRootBeanDefinition( beanDefHolder.getBeanDefinition());
 //					
@@ -144,6 +154,7 @@ public class AutoComponentScanBeanDefinitionParser extends ComponentScanBeanDefi
 
 
 		if (!registry.containsBeanDefinition(beanName)) {
+//			RootBeanDefinition rootBeanDefinition = new RootBeanDefinition(beanClassName, cargs, pvs)
 			RobbRootBeanDefinition def = new RobbRootBeanDefinition(clazz);
 			def.setSource(source);
 			def.setScope(BeanDefinition.SCOPE_SINGLETON);

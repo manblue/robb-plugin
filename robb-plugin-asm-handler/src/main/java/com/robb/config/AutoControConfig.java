@@ -117,6 +117,22 @@ public class AutoControConfig {
 		return false;
 	}
 	
+	/**
+	 *校验过滤条件
+	 * @param anntoDesc 
+	 * 		注解描述 eg:Lorg/springframework/stereotype/Component;
+	 * */
+	public static boolean checkOClassAnntoFilter(String anntoDesc) {
+		return oClassAnntoFilter.contains(anntoDesc);
+	}
+	/**
+	 * 校验过滤条件
+	 * @param anntoDesc 
+	 * 		注解描述 eg:Lorg/springframework/stereotype/Component;
+	 * */
+	public static boolean checkOMethodAnntoFilter(String anntoDesc) {
+		return oMethodAnntoFilter.contains(anntoDesc);
+	}
 	public static Set<String> getOClassAnntoFilter() {
 		return oClassAnntoFilter;
 	}
