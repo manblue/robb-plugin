@@ -96,6 +96,7 @@ public class Manager2Controller4JdkNode {
 				for (String annotationDesc : AutoControConfig.getOMethodAnntoFilter()) {
 					classNode.removeMethodAnnotation(annotationDesc);
 				}
+				
 				ClassApdater classApdater = new ClassApdater();
 				classNode.accept(classApdater);
 //				classReader.accept(classApdater, ClassReader.EXPAND_FRAMES);
@@ -195,6 +196,7 @@ public class Manager2Controller4JdkNode {
 			String oldClassFullName = (String) outPutParams.get(O_CLASS_FULL_NAME);
 			String newClassName = (String) outPutParams.get(N_CLASS_FULL_NAME);
 			String nClassDesc = (String) outPutParams.get(N_CLASS_DESC);
+			
 			for (MethodNode methodNode : classNode.methods) {
 				System.out.println("---method.name:"+methodNode.name+"-desc:"+methodNode.desc);
 				String mName = methodNode.name;
@@ -208,6 +210,10 @@ public class Manager2Controller4JdkNode {
 				boolean returnFlag = mDesc.contains(")V") ? false : true;//是否有返回
 				if (!Modifier.isPublic(methodNode.access) ||
 						Modifier.isStatic(methodNode.access)) {//非public,static
+					continue;
+				}
+				
+				if (CollectionUtils.isEmpty(methodNode.visibleAnnotations)) {
 					continue;
 				}
 				
@@ -230,7 +236,8 @@ public class Manager2Controller4JdkNode {
 					//亚栈入参
 				Label endLabel = buildMethodVisitorArgs(mv, methodNode, startLabel);
 				mv.visitLocalVariable("this",nClassDesc,nClassDesc, startLabel, endLabel, 0);
-				mv.visitMethodInsn(INVOKEINTERFACE, oldClassFullName, mName, mDesc, true);//mName
+				//TODO 判断是接口调用还是类调用
+				mv.visitMethodInsn(INVOKEVIRTUAL, oldClassFullName, mName, mDesc, false);//mName
 
 
 				buildParameterAnnotation(mv, methodNode);

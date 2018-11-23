@@ -90,7 +90,7 @@ public class AutoComponentScanBeanDefinitionParser extends ComponentScanBeanDefi
 //					Class managerClass = Class.forName(beanDefHolder.getBeanDefinition().getBeanClassName(), false, beanDefHolder.getBeanDefinition().getClass().getClassLoader());;
 					Class controClass = Manager2Controller4JdkNode.buildControClass(((FileSystemResource)beanDefHolder.getBeanDefinition().getSource()).getInputStream());
 		
-					Object object1 = controClass.getConstructor(null).newInstance(null);
+//					Object object1 = controClass.getConstructor(null).newInstance(null);
 					System.out.println("----"+controClass);
 					//移除注解
 					((ScannedGenericBeanDefinition)beanDefHolder.getBeanDefinition()).getMetadata().getAnnotationTypes().remove(RequestMapping.class.getName());

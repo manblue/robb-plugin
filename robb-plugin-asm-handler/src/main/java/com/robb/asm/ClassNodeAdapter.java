@@ -30,6 +30,9 @@ public class ClassNodeAdapter extends ClassNode {
 	
 	public void removeMethodAnnotation(String annotationDesc) {
 		for (MethodNode methodNode : methods) {
+			//移除参数注解
+			methodNode.visibleParameterAnnotations = null;
+
 			if (CollectionUtils.isEmpty(methodNode.visibleAnnotations)) {
 				continue;
 			}
