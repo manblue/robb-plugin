@@ -60,6 +60,12 @@ public class AutoComponentScanBeanDefinitionParser extends ComponentScanBeanDefi
 		AutoControConfig.addOClassAnntoFilter(Type.getDescriptor(RequestMapping.class));
 		AutoControConfig.addOMethodAnntoFilter(Type.getDescriptor(RequestMapping.class));
 
+//		Set<BeanDefinitionHolder> processorDefinitions = 
+//				AutoComponentConfigUtils.registerAnnotationConfigProcessors(parserContext.getRegistry(), source);
+//		// Nest the concrete beans in the surrounding component.
+//		for (BeanDefinitionHolder processorDefinition : processorDefinitions) {
+//			parserContext.registerComponent(new BeanComponentDefinition(processorDefinition));
+//		}
 		return super.parse(element, parserContext);
 	}
 	
