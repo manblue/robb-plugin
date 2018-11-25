@@ -21,6 +21,7 @@ public class ClassNodeAdapter extends ClassNode {
 			return;
 		}
 		
+		
 		for (Iterator<AnnotationNode> iterator = visibleAnnotations.iterator(); iterator.hasNext();) {
 			if (iterator.next().desc.equals(annotationDesc)) {
 				iterator.remove();
