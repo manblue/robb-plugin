@@ -8,6 +8,7 @@
 	<modules>
 		<module>robb-plugin-auto-controller</module>
 		<module>robb-plugin-asm-handler</module>
+		<module>robb-plugin-auto-dubbo-server</module>
 	</modules>
 	<dependencies>
 		<dependency>
