@@ -16,6 +16,10 @@ public class ClassNodeAdapter extends ClassNode {
 		super(Opcodes.ASM5);
 	}
 	
+	/**
+	 * 移除类注解
+	 * @param annotationDesc
+	 * */
 	public void removeAnnotation(String annotationDesc) {
 		if (CollectionUtils.isEmpty(visibleAnnotations)) {
 			return;
@@ -29,6 +33,10 @@ public class ClassNodeAdapter extends ClassNode {
 		}
 	}
 	
+	/**
+	 * 移除方法注解
+	 * @param annotationDesc
+	 * */
 	public void removeMethodAnnotation(String annotationDesc) {
 		for (MethodNode methodNode : methods) {
 			//移除参数注解
@@ -43,6 +51,15 @@ public class ClassNodeAdapter extends ClassNode {
 				}			
 			}
 		}
+	}
+	
+	/**
+	 * 修改类全路径名
+	 * @param nClassName
+	 * 		eg:java.lang.string
+	 * */
+	public void changeClassName(String nClassName) {
+		name = nClassName;
 	}
 
 }
