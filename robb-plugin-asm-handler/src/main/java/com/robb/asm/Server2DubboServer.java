@@ -2,6 +2,7 @@ package com.robb.asm;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.collections4.CollectionUtils;
@@ -47,9 +48,21 @@ public class Server2DubboServer {
 		try {
 			//遍历class信息
 			ClassReader classReader = new ClassReader(is);
-			ClassNodeAdapter classNode = new ClassNodeAdapter();
-			classReader.accept(classNode, ClassReader.EXPAND_FRAMES);
+			//业务serverImpl
+			ClassNodeAdapter oClassNode = new ClassNodeAdapter();
+			classReader.accept(oClassNode, ClassReader.EXPAND_FRAMES);
+			checkAnnotion(oClassNode);
 			
+			Map<String, Object> outPutParams = new HashMap<String, Object>();
+			ClassHandler handler = new ClassHandler();
+			//业务server 后续为dubbo server
+			Class oInterFaceClass = handler.getInterfaceClass(oClassNode, outPutParams);
+			
+			classReader = new ClassReader(oInterFaceClass.getName());
+			//新业务server
+			ClassNodeAdapter nInterFaceClassNode = new ClassNodeAdapter();
+			classReader.accept(nInterFaceClassNode, ClassReader.EXPAND_FRAMES);
+			nInterFaceClassNode.changeClassName(nClassName);
 			
 			
 			
@@ -68,24 +81,36 @@ public class Server2DubboServer {
 	
 	static class ClassHandler implements Opcodes{
 		
+		/**
+		 * 获取接口class
+		 * */
 		public Class getInterfaceClass(ClassNode classNode,Map<String, Object> outPutParams) {
 			String serverImplName = StringUtils.substringAfterLast(classNode.name, ".");
 			String serverName = serverImplName.replace("Impl", "");
 			String serverFullName = null;
-			if (classNode.interfaces.size() == 1) {
-				serverFullName = classNode.interfaces.get(0);
-				try {
-					return ClassUtils.forName(serverFullName, ClassUtils.getDefaultClassLoader());
-				} catch (ClassNotFoundException e) {
-					e.printStackTrace();
-					throw new IllegalArgumentException("getInterfaceClass from "+classNode.name+" err:"+e.getMessage());
-				} catch (LinkageError e) {
-					e.printStackTrace();
-					throw new IllegalArgumentException("getInterfaceClass from "+classNode.name+" err:"+e.getMessage());
+			if (CollectionUtils.isEmpty(classNode.interfaces)) {
+				throw new IllegalArgumentException("getInterfaceClass from "+classNode.name+" err class["+classNode.name+"]must implements interface");
+			}else {
+				for (String interfaceName : classNode.interfaces) {
+					if (interfaceName.endsWith(serverName)) {
+						serverFullName = interfaceName;
+						break;
+					}
+				}
+				if (StringUtils.isNotBlank(serverFullName)) {
+					try {
+						return ClassUtils.forName(serverFullName, ClassUtils.getDefaultClassLoader());
+					} catch (ClassNotFoundException e) {
+						e.printStackTrace();
+						throw new IllegalArgumentException("getInterfaceClass from "+classNode.name+" err:"+e.getMessage());
+					} catch (LinkageError e) {
+						e.printStackTrace();
+						throw new IllegalArgumentException("getInterfaceClass from "+classNode.name+" err:"+e.getMessage());
+					}
 				}
 			}
-			
-			return null;
+			throw new IllegalArgumentException("getInterfaceClass from "+classNode.name+" err: please change interface name to "+serverName);
+
 		}
 		//拼装class头信息
 		public ClassWriter buildClassHead(ClassNode classNode,Map<String, Object> outPutParams) {
@@ -128,7 +153,46 @@ public class Server2DubboServer {
 			mv.visitEnd();
 			return cw;
 	}
+		
+		
+		
+		public ClassWriter buildNewInterfaceClass(Class oInterFaceClass,ClassNodeAdapter oClassNode,Map<String, Object> outPutParams) {
+			
+			ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+			cw.visit(classNode.version, 
+					ACC_PUBLIC + ACC_INTERFACE+ACC_ABSTRACT,
+					controName, null, SUPER_NAME,
+					null);
+			
+			oInterFaceClass.getDeclaredAnnotation(annotationClass)
+			
+			return null;
+		}
+		
+		
+		
 	}
 
+	
+	/**
+	 * 校验注解
+	 * */
+	private static void checkAnnotion(ClassNode classNode) throws IllegalAccessException {
+		if (CollectionUtils.isEmpty(classNode.visibleAnnotations)) {
+			throw new IllegalAccessException("class["+classNode.name+"] must declared annotation[org.springframework.stereotype.Service]");
+		}
+		boolean ok = true;
+		for(AnnotationNode node : classNode.visibleAnnotations){
+			if ("Lorg.springframework.stereotype.Service;".equals(node.desc)) {
+				ok = false;
+				if (StringUtils.isBlank((CharSequence) node.values.get(1))) {
+					throw new IllegalAccessException("class["+classNode.name+"] annotation[org.springframework.stereotype.Service] must set 'name'");
+				}
+			}
+		}
+		if (ok) {
+			throw new IllegalAccessException("class["+classNode.name+"] must declared annotation[org.springframework.stereotype.Service]");
+		}
+	}
 	
 }
