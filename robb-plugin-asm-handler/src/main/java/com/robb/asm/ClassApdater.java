@@ -1,14 +1,19 @@
 package com.robb.asm;
 
 
+import org.objectweb.asm.AnnotationVisitor;
+import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Opcodes;
+
 import com.robb.config.AutoControConfig;
 
-import jdk.internal.org.objectweb.asm.AnnotationVisitor;
-import jdk.internal.org.objectweb.asm.ClassVisitor;
-import jdk.internal.org.objectweb.asm.ClassWriter;
-import jdk.internal.org.objectweb.asm.MethodVisitor;
-import jdk.internal.org.objectweb.asm.Opcodes;
-import jdk.internal.org.objectweb.asm.TypePath;
+//import jdk.internal.org.objectweb.asm.AnnotationVisitor;
+//import jdk.internal.org.objectweb.asm.ClassVisitor;
+//import jdk.internal.org.objectweb.asm.ClassWriter;
+//import jdk.internal.org.objectweb.asm.MethodVisitor;
+//import jdk.internal.org.objectweb.asm.Opcodes;
+//import jdk.internal.org.objectweb.asm.TypePath;
 
 public class ClassApdater extends ClassVisitor {
 

@@ -7,4 +7,21 @@
   </parent>
   <groupId>robb-plugin-auto-dubbo-server</groupId>
   <artifactId>robb-plugin-auto-dubbo-server</artifactId>
+  <dependencies>
+  	<dependency>
+  		<groupId>org.springframework</groupId>
+  		<artifactId>spring-beans</artifactId>
+  		<version>${springframework.version}</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>org.springframework</groupId>
+  		<artifactId>spring-context</artifactId>
+  		<version>${springframework.version}</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>robb-plugin-asm-handler</groupId>
+  		<artifactId>robb-plugin-asm-handler</artifactId>
+  		<version>0.0.1-SNAPSHOT</version>
+  	</dependency>
+  </dependencies>
 </project>

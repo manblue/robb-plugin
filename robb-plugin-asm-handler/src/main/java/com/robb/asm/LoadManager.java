@@ -2,9 +2,11 @@ package com.robb.asm;
 
 import java.lang.reflect.Method;
 
+import org.objectweb.asm.ClassWriter;
+
 import com.robb.config.AutoControConfig;
 
-import jdk.internal.org.objectweb.asm.ClassWriter;
+//import jdk.internal.org.objectweb.asm.ClassWriter;
 
 public class LoadManager {
 

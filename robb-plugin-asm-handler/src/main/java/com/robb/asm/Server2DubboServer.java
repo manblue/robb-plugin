@@ -5,15 +5,27 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.jar.JarInputStream;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.objectweb.asm.AnnotationVisitor;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.FieldVisitor;
+import org.objectweb.asm.Label;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.AnnotationNode;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.LocalVariableNode;
+import org.objectweb.asm.tree.MethodNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -22,18 +34,17 @@ import org.springframework.util.ClassUtils;
 import com.robb.config.AutoControConfig;
 import com.robb.config.AutoServerConfig;
 
-import jdk.internal.org.objectweb.asm.AnnotationVisitor;
-import jdk.internal.org.objectweb.asm.ClassReader;
-import jdk.internal.org.objectweb.asm.ClassWriter;
-import jdk.internal.org.objectweb.asm.FieldVisitor;
-import jdk.internal.org.objectweb.asm.Label;
-import jdk.internal.org.objectweb.asm.MethodVisitor;
-import jdk.internal.org.objectweb.asm.Opcodes;
-import jdk.internal.org.objectweb.asm.Type;
-import jdk.internal.org.objectweb.asm.tree.AnnotationNode;
-import jdk.internal.org.objectweb.asm.tree.ClassNode;
-import jdk.internal.org.objectweb.asm.tree.LocalVariableNode;
-import jdk.internal.org.objectweb.asm.tree.MethodNode;
+//import jdk.internal.org.objectweb.asm.AnnotationVisitor;
+//import jdk.internal.org.objectweb.asm.ClassReader;
+//import jdk.internal.org.objectweb.asm.ClassWriter;
+//import jdk.internal.org.objectweb.asm.FieldVisitor;
+//import jdk.internal.org.objectweb.asm.Label;
+//import jdk.internal.org.objectweb.asm.MethodVisitor;
+//import jdk.internal.org.objectweb.asm.Opcodes;
+//import jdk.internal.org.objectweb.asm.tree.AnnotationNode;
+//import jdk.internal.org.objectweb.asm.tree.ClassNode;
+//import jdk.internal.org.objectweb.asm.tree.LocalVariableNode;
+//import jdk.internal.org.objectweb.asm.tree.MethodNode;
 
 /**
  * 根据业务serverImpl  class 自动生成给dubbo调用的业务接口层
@@ -85,7 +96,13 @@ public class Server2DubboServer {
 			Class dServerClass = handler.getInterfaceClass(serverImplClassNode);
 			paramCache.put(D_SERVER_CLASS_FULL_NAME, dServerClass.getName().replace('.', '/'));
 
-			classReader = new ClassReader(dServerClass.getName());
+			System.out.println("----"+Thread.currentThread().getContextClassLoader().hashCode());
+			System.out.println("----"+getClass().getClassLoader().hashCode());
+			System.out.println("----"+ClassReader.class.getClassLoader());
+
+			InputStream in = dServerClass.getProtectionDomain().getCodeSource().getLocation().openConnection().getInputStream();
+			classReader = new ClassReader(in);
+			in.close();
 			//业务server
 			ClassNodeAdapter serverClassNode = new ClassNodeAdapter();
 			classReader.accept(serverClassNode, ClassReader.EXPAND_FRAMES);

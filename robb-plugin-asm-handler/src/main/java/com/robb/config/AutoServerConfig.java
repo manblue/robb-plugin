@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import jdk.internal.org.objectweb.asm.ClassWriter;
 
@@ -36,6 +37,23 @@ public class AutoServerConfig {
 		for (String basePackage : basePackages) {
 			baseScanPackages.add(basePackage);
 		}
+	}
+	
+	/**
+	 * 校验扫描路径
+	 * @param basePackage 
+	 * 		扫描路径 eg:org.springframework.stereotype
+	 * */
+	public static boolean checkBasePackages(String path) {
+		if (StringUtils.isBlank(path)) {
+			return false;
+		}
+		for (String scanPackage : baseScanPackages) {
+			if (path.startsWith(scanPackage)) {
+				return true;
+			}
+		}
+		return false;
 	}
 	
 	public static void addCache(String className,Class clazz) {

@@ -5,16 +5,20 @@ import java.util.Iterator;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.tree.AnnotationNode;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.MethodNode;
 
-import jdk.internal.org.objectweb.asm.Opcodes;
-import jdk.internal.org.objectweb.asm.tree.AnnotationNode;
-import jdk.internal.org.objectweb.asm.tree.ClassNode;
-import jdk.internal.org.objectweb.asm.tree.MethodNode;
+//import jdk.internal.org.objectweb.asm.Opcodes;
+//import jdk.internal.org.objectweb.asm.tree.AnnotationNode;
+//import jdk.internal.org.objectweb.asm.tree.ClassNode;
+//import jdk.internal.org.objectweb.asm.tree.MethodNode;
 
 public class ClassNodeAdapter extends ClassNode {
 
 	public ClassNodeAdapter() {
-		super(Opcodes.ASM5);
+		super(Opcodes.ASM6);
 	}
 	
 	/**
