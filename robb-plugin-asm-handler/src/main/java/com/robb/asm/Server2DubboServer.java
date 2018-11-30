@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -100,9 +101,8 @@ public class Server2DubboServer {
 			System.out.println("----"+getClass().getClassLoader().hashCode());
 			System.out.println("----"+ClassReader.class.getClassLoader());
 
-			InputStream in = dServerClass.getProtectionDomain().getCodeSource().getLocation().openConnection().getInputStream();
-			classReader = new ClassReader(in);
-			in.close();
+			URL url = dServerClass.getProtectionDomain().getCodeSource().getLocation();
+			classReader = new ClassReader(url.getFile());
 			//业务server
 			ClassNodeAdapter serverClassNode = new ClassNodeAdapter();
 			classReader.accept(serverClassNode, ClassReader.EXPAND_FRAMES);
