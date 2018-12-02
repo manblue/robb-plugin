@@ -10,10 +10,10 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.jar.JarInputStream;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassReader;
@@ -29,6 +29,7 @@ import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ClassUtils;
 
@@ -69,8 +70,9 @@ public class Server2DubboServer {
 	
 	final static String separator = "/";//FileSystems.getDefault().getSeparator();
 	private Map<String, Object> paramCache = new HashMap<String, Object>();
+	private Map<String, String> doneServerClassCache = new HashMap<String, String>();
 	private static Logger logger = LoggerFactory.getLogger(Server2DubboServer.class);
-	
+	private static boolean outFile = false;
 	private Server2DubboServer() {
 		// TODO Auto-generated constructor stub
 	}
@@ -91,46 +93,52 @@ public class Server2DubboServer {
 			//校验注解org.springframework.stereotype.Service
 			checkAnnotion(serverImplClassNode);
 			
-			
+			Server2DubboServer.class.getClassLoader();
+
 			AsmHandler handler = new AsmHandler();
+			ClassApdater apdater = null;
+			byte[] code;
 			//dubbo server class 【原业务server class】
 			Class dServerClass = handler.getInterfaceClass(serverImplClassNode);
 			paramCache.put(D_SERVER_CLASS_FULL_NAME, dServerClass.getName().replace('.', '/'));
+			String serverClassName = doneServerClassCache.get(dServerClass.getName());
+			if (StringUtils.isBlank(serverClassName)) {
+				
+				Resource resource = AutoServerConfig.removeServiceResourceCache("/"+dServerClass.getName().replace(".", "/")+".class");
+				InputStream in = resource.getInputStream();
+				classReader = new ClassReader(in);
+				in.close();
+				//业务server
+				ClassNodeAdapter serverClassNode = new ClassNodeAdapter();
+				classReader.accept(serverClassNode, ClassReader.EXPAND_FRAMES);
+				serverClassName = serverClassNode.name.concat("4Busi");
+				//修改类全路径名 业务server
+				serverClassNode.changeClassName(serverClassName);			
+				paramCache.put(SERVER_CLASS_SIGNATURE, serverClassNode.signature);
+				doneServerClassCache.put(dServerClass.getName(), serverClassName);
 
-			System.out.println("----"+Thread.currentThread().getContextClassLoader().hashCode());
-			System.out.println("----"+getClass().getClassLoader().hashCode());
-			System.out.println("----"+ClassReader.class.getClassLoader());
-
-			URL url = dServerClass.getProtectionDomain().getCodeSource().getLocation();
-			classReader = new ClassReader(url.getFile());
-			//业务server
-			ClassNodeAdapter serverClassNode = new ClassNodeAdapter();
-			classReader.accept(serverClassNode, ClassReader.EXPAND_FRAMES);
-			String serverClassName = serverClassNode.name.concat("4Busi");
-			paramCache.put(SERVER_CLASS_FULL_NAME, serverClassName);
-			//修改类全路径名 业务server
-			serverClassNode.changeClassName(serverClassName);			
-			paramCache.put(SERVER_CLASS_SIGNATURE, serverClassNode.signature);
-
-			ClassApdater apdater = new ClassApdater();
-			serverClassNode.accept(apdater);
-			byte[] bb = apdater.getClassWriter().toByteArray();
-			outFile(serverClassNode.name, bb);
-			//新业务server class
-			Class  serverClass = handler.defineClazz(serverClassNode.name.replace('/', '.'), bb, 0, bb.length, ClassUtils.getDefaultClassLoader());
+				apdater = new ClassApdater();
+				serverClassNode.accept(apdater);
+				code = apdater.getClassWriter().toByteArray();
+				outFile(serverClassNode.name, code);
+				//新业务server class
+				Class  serverClass = handler.defineClazz(serverClassNode.name.replace('/', '.'), code, 0, code.length, ClassUtils.getDefaultClassLoader());
 			
+			}
+			paramCache.put(SERVER_CLASS_FULL_NAME, serverClassName);
+
 			//dubbo serverImpl class
 			dServerImpl = buildDServerImplClass(handler, serverImplClassNode, dServerClass);
-			
+//			Method[] methods = dServerImpl.getDeclaredMethods();
 			apdater = new ClassApdater();
 			//修改业务serverImpl接口名称 及注解名称
 			serverImplClassNode.changeClassInterfaceName(dServerClass.getName().replace('.', '/'), serverClassName);
 			serverImplClassNode.accept(apdater);
-			bb = apdater.getClassWriter().toByteArray();
-			outFile(serverImplClassNode.name, bb);
+			code = apdater.getClassWriter().toByteArray();
+			outFile(serverImplClassNode.name, code);
 			//业务serverImpl class
-			Class  serverImplClass = handler.defineClazz(serverImplClassNode.name.replace('/', '.'), bb, 0, bb.length, ClassUtils.getDefaultClassLoader());
-			AutoServerConfig.addCache(serverImplClassNode.name.replace('/', '.'), serverImplClass);
+			Class  serverImplClass = handler.defineClazz(serverImplClassNode.name.replace('/', '.'), code, 0, code.length, ClassUtils.getDefaultClassLoader());
+			AutoServerConfig.addServiceImplClassCache(serverImplClassNode.name.replace('/', '.'), serverImplClass);
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -182,7 +190,11 @@ public class Server2DubboServer {
 	}
 	
 	private static void outFile(String name,byte[] code) {
-		String basePath = "D:\\maolong\\DEV\\spring\\.metadata\\.plugins\\org.eclipse.wst.server.core\\tmp0\\wtpwebapps\\robb-soa\\WEB-INF\\classes\\";
+//		String basePath = "D:\\maolong\\DEV\\spring\\.metadata\\.plugins\\org.eclipse.wst.server.core\\tmp0\\wtpwebapps\\robb-soa\\WEB-INF\\classes\\";
+		if (!outFile) {
+			return;
+		}
+		String basePath = Server2DubboServer.class.getResource("/").getPath();
 		String outFile = basePath+name.replace('.',	'/' )+".class";
 		System.out.println("outFile====="+outFile);
 		FileOutputStream fos;
@@ -221,7 +233,7 @@ public class Server2DubboServer {
 		 * */
 		public Class getInterfaceClass(ClassNode classNode) {
 			String serverImplName = StringUtils.substringAfterLast(classNode.name, "/");
-			String serverName = serverImplName.replace("Impl", "");
+			String serverName = StringUtils.substringBefore(serverImplName, "Impl");
 			String serverFullName = null;
 			if (CollectionUtils.isEmpty(classNode.interfaces)) {
 				throw new IllegalArgumentException("getInterfaceClass from "+classNode.name+" err class["+classNode.name+"]must implements interface");

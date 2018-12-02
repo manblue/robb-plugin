@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentMap;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.core.io.Resource;
 
 import jdk.internal.org.objectweb.asm.ClassWriter;
 
@@ -19,10 +20,11 @@ public class AutoServerConfig {
 	/**扫描路径*/
 	private static Set<String> baseScanPackages = new HashSet<String>();
 	
-	/**重写class数据缓存*/
-	private static ConcurrentMap<String, Class> cache = new ConcurrentHashMap<String, Class>(30);
+	/**重写serviceimpl class数据缓存*/
+	private static ConcurrentMap<String, Class> serviceImplClassCache = new ConcurrentHashMap<String, Class>(30);
 	
-	
+	/**service文件资源数据缓存*/
+	private static ConcurrentMap<String, Resource> serviceResourceCache = new ConcurrentHashMap<String, Resource>(30);
 	
 	
 	/**
@@ -56,11 +58,19 @@ public class AutoServerConfig {
 		return false;
 	}
 	
-	public static void addCache(String className,Class clazz) {
-		cache.put(className, clazz);
+	public static void addServiceImplClassCache(String className,Class clazz) {
+		serviceImplClassCache.put(className, clazz);
 	}
 	
-	public static Class getCache(String className) {
-		return cache.get(className);
+	public static Class removeServiceImplClassCache(String className) {
+		return serviceImplClassCache.remove(className);
+	}
+	
+	public static void addServiceResourceCache(String className,Resource resource) {
+		serviceResourceCache.put(className, resource);
+	}
+	
+	public static Resource removeServiceResourceCache(String className) {
+		return serviceResourceCache.remove(className);
 	}
 }

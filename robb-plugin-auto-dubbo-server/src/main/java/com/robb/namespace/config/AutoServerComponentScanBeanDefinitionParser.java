@@ -14,9 +14,11 @@ import org.springframework.beans.factory.xml.ParserContext;
 import org.springframework.beans.factory.xml.XmlReaderContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigUtils;
+import org.springframework.context.annotation.ClassPathBeanDefinitionScanner;
 import org.springframework.context.annotation.ComponentScanBeanDefinitionParser;
 import org.springframework.context.annotation.ScannedGenericBeanDefinition;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Element;
 
@@ -41,6 +43,7 @@ public class AutoServerComponentScanBeanDefinitionParser extends
 		String[] basePackages = StringUtils.split(basePackage,
 				ConfigurableApplicationContext.CONFIG_LOCATION_DELIMITERS);
 		AutoServerConfig.addBasePackages(basePackages);
+		System.out.println(Thread.currentThread().getContextClassLoader());
 		return super.parse(element, parserContext);
 	}
 	
@@ -57,13 +60,13 @@ public class AutoServerComponentScanBeanDefinitionParser extends
 			if (((ScannedGenericBeanDefinition)beanDefinitionHolder.getBeanDefinition()).getMetadata().getAnnotationTypes().contains(ANNOTATION_AUTO_SERVER)) {
 				
 				try {
-					Class dubboServerClass = handler.buildDubboServerClass(((FileSystemResource)beanDefinitionHolder.getBeanDefinition().getSource()).getInputStream());
+					Class dubboServerImplClass = handler.buildDubboServerClass(((Resource)beanDefinitionHolder.getBeanDefinition().getSource()).getInputStream());
+//					
+//					BeanDefinitionHolder nBeanDefHolder = registerBeanDefinition(readerContext.getRegistry(), source, dubboServerImplClass);
+//					compositeDef.addNestedComponent(new BeanComponentDefinition(nBeanDefHolder));
 					
-					BeanDefinitionHolder nBeanDefHolder = registerBeanDefinition(readerContext.getRegistry(), source, dubboServerClass);
-					compositeDef.addNestedComponent(new BeanComponentDefinition(nBeanDefHolder));
-					
-					Class serverClass = AutoServerConfig.getCache(beanDefinitionHolder.getBeanDefinition().getBeanClassName());
-					beanDefinitionHolder = registerBeanDefinition(readerContext.getRegistry(), source, serverClass);
+					Class serverImplClass = AutoServerConfig.removeServiceImplClassCache(beanDefinitionHolder.getBeanDefinition().getBeanClassName());
+ 
 					BeanDefinitionReaderUtils.registerBeanDefinition(beanDefinitionHolder, readerContext.getRegistry());
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -88,6 +91,14 @@ public class AutoServerComponentScanBeanDefinitionParser extends
 		}
 
 		readerContext.fireComponentRegistered(compositeDef);
+	}
+	
+	@Override
+	protected ClassPathBeanDefinitionScanner createScanner(XmlReaderContext readerContext, boolean useDefaultFilters) {
+		// TODO Auto-generated method stub
+//		return super.createScanner(readerContext, useDefaultFilters);
+		return new RobbClassPathBeanDefinitionScanner(readerContext.getRegistry(), useDefaultFilters, 
+				readerContext.getEnvironment(), readerContext.getResourceLoader());
 	}
 	
 	private BeanDefinitionHolder registerBeanDefinition(
