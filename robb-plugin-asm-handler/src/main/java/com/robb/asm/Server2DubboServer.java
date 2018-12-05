@@ -4,12 +4,15 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
@@ -93,13 +96,14 @@ public class Server2DubboServer {
 			//校验注解org.springframework.stereotype.Service
 			checkAnnotion(serverImplClassNode);
 			
-			Server2DubboServer.class.getClassLoader();
+			System.out.println(Server2DubboServer.class.getClassLoader());
 
-			AsmHandler handler = new AsmHandler();
+			AsmHandler handler = new AsmHandler(ClassUtils.getDefaultClassLoader());
 			ClassApdater apdater = null;
 			byte[] code;
 			//dubbo server class 【原业务server class】
 			Class dServerClass = handler.getInterfaceClass(serverImplClassNode);
+			Method[] method = dServerClass.getDeclaredMethods();
 			paramCache.put(D_SERVER_CLASS_FULL_NAME, dServerClass.getName().replace('.', '/'));
 			String serverClassName = doneServerClassCache.get(dServerClass.getName());
 			if (StringUtils.isBlank(serverClassName)) {
@@ -122,13 +126,16 @@ public class Server2DubboServer {
 				code = apdater.getClassWriter().toByteArray();
 				outFile(serverClassNode.name, code);
 				//新业务server class
-				Class  serverClass = handler.defineClazz(serverClassNode.name.replace('/', '.'), code, 0, code.length, ClassUtils.getDefaultClassLoader());
-			
+				Class  serverClass = handler.defineClazz(serverClassNode.name.replace('/', '.'), code, 0, code.length);
 			}
 			paramCache.put(SERVER_CLASS_FULL_NAME, serverClassName);
-
+			
+			Object object1 = ClassNodeAdapter.class.newInstance();
+			
 			//dubbo serverImpl class
 			dServerImpl = buildDServerImplClass(handler, serverImplClassNode, dServerClass);
+			object1 = dServerImpl.newInstance();
+			
 //			Method[] methods = dServerImpl.getDeclaredMethods();
 			apdater = new ClassApdater();
 			//修改业务serverImpl接口名称 及注解名称
@@ -137,7 +144,9 @@ public class Server2DubboServer {
 			code = apdater.getClassWriter().toByteArray();
 			outFile(serverImplClassNode.name, code);
 			//业务serverImpl class
-			Class  serverImplClass = handler.defineClazz(serverImplClassNode.name.replace('/', '.'), code, 0, code.length, ClassUtils.getDefaultClassLoader());
+			Class  serverImplClass = handler.defineClazz(serverImplClassNode.name.replace('/', '.'), code, 0, code.length);
+			Object object = serverImplClass.newInstance();
+			System.out.println("object---"+object);
 			AutoServerConfig.addServiceImplClassCache(serverImplClassNode.name.replace('/', '.'), serverImplClass);
 			
 		} catch (Exception e) {
@@ -163,7 +172,7 @@ public class Server2DubboServer {
 		byte[] code = cw.toByteArray();
 		String dServerImplFullName = (String) paramCache.get(D_SERVER_IMPL_CLASS_FULL_NAME);
 		outFile(dServerImplFullName, code);
-		Class  dServerImplClass = handler.defineClazz(dServerImplFullName.replace('/', '.'), code	, 0, code.length, ClassUtils.getDefaultClassLoader());
+		Class  dServerImplClass = handler.defineClazz(dServerImplFullName.replace('/', '.'), code	, 0, code.length);
 		return dServerImplClass;
 	}
 	
@@ -224,7 +233,7 @@ public class Server2DubboServer {
 	/**
 	 * 字节码处理类
 	 * */
-	class AsmHandler implements Opcodes{
+	class AsmHandler extends ClassLoader implements Opcodes{
 		
 		/**
 		 * 获取接口class
@@ -655,20 +664,49 @@ public class Server2DubboServer {
 			return paramNum;
 		}
 		
+		public AsmHandler(ClassLoader parent) {
+			super(parent);
+		}
 		
-		public final Class<?> defineClazz(String name, byte[] b, int off, int len,ClassLoader classLoader)
+//		@Override
+//		public Class<?> findClass(String name) throws ClassNotFoundException {
+//			// TODO Auto-generated method stub
+//			System.out.println("=========="+name);
+//			Class clazz = getParent().findClass(name);
+//			return clazz;
+//		}
+		
+		@Override
+		public Class<?> loadClass(String name) throws ClassNotFoundException {
+			// TODO Auto-generated method stub
+//			AutoServerConfig.removeServiceImplClassCache(name);
+			Class clazz = null;
+			if (name.equals("RobbServiceImpl4Dubbo")) {
+				clazz = cache.get("com.robb.service.impl.RobbServiceImpl4Dubbo");
+			}else {
+				clazz = getParent().loadClass(name);
+			}
+			return clazz;
+		}
+		
+		public final Class<?> defineClazz(String name, byte[] b, int off, int len)
 	            throws ClassFormatError
 	        {
 				try {
+//					Class clazz = this.defineClass(name, b, off, len);
+//					cache.put(name, clazz);
+//					return clazz;
 					Method cc = ClassLoader.class.getDeclaredMethod("defineClass", String.class,byte[].class,int.class,int.class);
 					cc.setAccessible(true);
-					return (Class<?>)cc.invoke(classLoader, new Object[]{name,b,off,len});
+					return (Class<?>)cc.invoke(getParent(), new Object[]{name,b,off,len});
 				} catch (Exception e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				} 
 	            return null;
 	        }
+		
+		private ConcurrentMap<String, Class> cache = new ConcurrentHashMap<String, Class>();
 	}
 
 

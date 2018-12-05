@@ -68,7 +68,7 @@ public class DefaultManager2Controller {
 			cReader.accept(printer, 0);			
 
 			ClassNode node = new ClassNode();
-			cReader.accept(node, ClassReader.EXPAND_FRAMES);
+			cReader.accept(node, ClassReader.EXPAND_FRAMES); 
 			//-------------------------------test------------------------------------------
 			List<MethodNode> list = node.methods;
 			System.out.println("-------------------------name:"+node.name+"-signature:"+node.signature);

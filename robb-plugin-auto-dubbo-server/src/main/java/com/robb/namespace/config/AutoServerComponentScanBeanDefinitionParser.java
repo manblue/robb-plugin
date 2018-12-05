@@ -61,12 +61,12 @@ public class AutoServerComponentScanBeanDefinitionParser extends
 				
 				try {
 					Class dubboServerImplClass = handler.buildDubboServerClass(((Resource)beanDefinitionHolder.getBeanDefinition().getSource()).getInputStream());
-//					
-//					BeanDefinitionHolder nBeanDefHolder = registerBeanDefinition(readerContext.getRegistry(), source, dubboServerImplClass);
-//					compositeDef.addNestedComponent(new BeanComponentDefinition(nBeanDefHolder));
+					
+					BeanDefinitionHolder nBeanDefHolder = registerBeanDefinition(readerContext.getRegistry(), source, dubboServerImplClass);
+					compositeDef.addNestedComponent(new BeanComponentDefinition(nBeanDefHolder));
 					
 					Class serverImplClass = AutoServerConfig.removeServiceImplClassCache(beanDefinitionHolder.getBeanDefinition().getBeanClassName());
- 
+					beanDefinitionHolder = registerBeanDefinition(readerContext.getRegistry(), source, serverImplClass);
 					BeanDefinitionReaderUtils.registerBeanDefinition(beanDefinitionHolder, readerContext.getRegistry());
 				} catch (Exception e) {
 					e.printStackTrace();

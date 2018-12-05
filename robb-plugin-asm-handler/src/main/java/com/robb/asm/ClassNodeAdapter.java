@@ -15,7 +15,7 @@ import org.objectweb.asm.tree.MethodNode;
 //import jdk.internal.org.objectweb.asm.tree.ClassNode;
 //import jdk.internal.org.objectweb.asm.tree.MethodNode;
 
-public class ClassNodeAdapter extends ClassNode {
+public class ClassNodeAdapter extends ClassNode { 
 
 	public ClassNodeAdapter() {
 		super(Opcodes.ASM6);
