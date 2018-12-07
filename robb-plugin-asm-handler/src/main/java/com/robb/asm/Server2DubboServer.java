@@ -96,16 +96,16 @@ public class Server2DubboServer {
 			//校验注解org.springframework.stereotype.Service
 			checkAnnotion(serverImplClassNode);
 			
-			System.out.println(Server2DubboServer.class.getClassLoader());
-			ClassPrinter printer = ClassPrinter.getNewPrinter(true);
-			classReader.accept(printer, ClassReader.EXPAND_FRAMES);
+//			System.out.println(Server2DubboServer.class.getClassLoader());
+//			ClassPrinter printer = ClassPrinter.getNewPrinter(true);
+//			classReader.accept(printer, ClassReader.EXPAND_FRAMES);
 
 			AsmHandler handler = new AsmHandler(ClassUtils.getDefaultClassLoader());
 			ClassApdater apdater = null;
 			byte[] code;
 			//dubbo server class 【原业务server class】
 			Class dServerClass = handler.getInterfaceClass(serverImplClassNode);
-			Method[] method = dServerClass.getDeclaredMethods();
+//			Method[] method = dServerClass.getDeclaredMethods();
 			paramCache.put(D_SERVER_CLASS_FULL_NAME, dServerClass.getName().replace('.', '/'));
 			String serverClassName = doneServerClassCache.get(dServerClass.getName());
 			if (StringUtils.isBlank(serverClassName)) {
@@ -129,6 +129,8 @@ public class Server2DubboServer {
 				outFile(serverClassNode.name, code);
 				//新业务server class
 				Class  serverClass = handler.defineClazz(serverClassNode.name.replace('/', '.'), code, 0, code.length);
+//				method = serverClass.getDeclaredMethods();
+//				System.out.println(serverClass+"-"+method);
 			}
 			paramCache.put(SERVER_CLASS_FULL_NAME, serverClassName);
 			
@@ -136,9 +138,9 @@ public class Server2DubboServer {
 			
 			//dubbo serverImpl class
 			dServerImpl = buildDServerImplClass(handler, serverImplClassNode, dServerClass);
-			object1 = dServerImpl.newInstance();
+//			object1 = dServerImpl.newInstance();
 			
-			Method[] methods = dServerImpl.getDeclaredMethods();
+//			Method[] methods = dServerImpl.getDeclaredMethods();
 			apdater = new ClassApdater();
 			//修改业务serverImpl接口名称 及注解名称
 			serverImplClassNode.changeClassInterfaceName(dServerClass.getName().replace('.', '/'), serverClassName);
@@ -149,8 +151,8 @@ public class Server2DubboServer {
 			Class  serverImplClass = handler.defineClazz(serverImplClassNode.name.replace('/', '.'), code, 0, code.length);
 //			Method[] methods = serverImplClass.getDeclaredMethods();
 
-			Object object = serverImplClass.newInstance();
-			System.out.println("object---"+object);
+//			Object object = serverImplClass.newInstance();
+//			System.out.println("object---"+object);
 			AutoServerConfig.addServiceImplClassCache(serverImplClassNode.name.replace('/', '.'), serverImplClass);
 			
 		} catch (Exception e) {
@@ -168,7 +170,7 @@ public class Server2DubboServer {
 	
 	private Class buildDServerImplClass(AsmHandler handler,ClassNode serverImplClassNode,Class dServerClass) {
 		ClassWriter cw = handler.buildClassHead(serverImplClassNode);
-//		handler.buildClassField(cw, serverImplClassNode);
+		handler.buildClassField(cw, serverImplClassNode);
 		handler.buildClassMethod(cw, serverImplClassNode, dServerClass);
 		cw.visitEnd();
 		
@@ -279,7 +281,7 @@ public class Server2DubboServer {
 		 * */
 		public ClassWriter buildClassHead(ClassNode serverImplClassNode) {
 			//classNode.name eg:com/robb/manager/RobbManager
-			String dubboServerImplName = serverImplClassNode.name.concat("D");//java.lang.String
+			String dubboServerImplName = serverImplClassNode.name.concat("4Dubbo");//java.lang.String
 			String simpleName =  StringUtils.substringAfterLast(dubboServerImplName, separator);
 			
 			paramCache.put(SERVER_IMPL_CLASS_FULL_NAME, serverImplClassNode.name);
@@ -302,7 +304,7 @@ public class Server2DubboServer {
 //						continue;
 //					}
 					if (annotationNode.desc.equals(Type.getDescriptor(Service.class))) {
-						System.out.println("---annotationNode.desc:"+annotationNode.desc);
+//						System.out.println("---annotationNode.desc:"+annotationNode.desc);
 						AnnotationVisitor visitor = cw.visitAnnotation(annotationNode.desc, true);
 						annotationNode.accept(visitor);
 						visitor.visitEnd();
@@ -338,7 +340,7 @@ public class Server2DubboServer {
 			paramCache.put(FIELD_DESC, fieldDesc);
 			FieldVisitor fv = cw.visitField(Opcodes.ACC_PRIVATE, fieldName,fieldDesc, (String) paramCache.get(SERVER_CLASS_SIGNATURE), null);
 			
-			fv.visitAnnotation("Lorg/springframework/beans/factory/annotation/Autowired;", true);
+			fv.visitAnnotation("Lorg/springframework/beans/factory/annotation/Autowired;", true).visitEnd();;
 			fv.visitEnd();
 			return fv;
 		}
@@ -356,10 +358,10 @@ public class Server2DubboServer {
 			String serverClassFullName = (String) paramCache.get(SERVER_CLASS_FULL_NAME);
 
 			String dServerImplClassFullName = (String) paramCache.get(D_SERVER_IMPL_CLASS_FULL_NAME);
-			String dServerImplClassName = StringUtils.substringAfterLast(dServerImplClassFullName, separator);
+//			String dServerImplClassName = StringUtils.substringAfterLast(dServerImplClassFullName, separator);
 			
 			for (MethodNode methodNode : serverImplClassNode.methods) {
-				System.out.println("---method.name:"+methodNode.name+"-desc:"+methodNode.desc);
+//				System.out.println("---method.name:"+methodNode.name+"-desc:"+methodNode.desc);
 				String mName = methodNode.name;
 				if (mName.contains("<") || mName.equals(StringUtils.substringAfterLast(serverImplClassNode.name, separator)) ||
 						mName.startsWith("set") || 
@@ -384,21 +386,14 @@ public class Server2DubboServer {
 //				buildMethodAnnotation(mv, methodNode);
 				mv.visitCode();
 				mv.visitEnd();
-				if (!outFile) {
-					mv.visitInsn(buildMethodReturnCode(methodNode.desc));
-
-					mv.visitMaxs(3, 2);
-					continue;
-
-				}
-//				Label startLabel = new Label();//本地变量 作用域-开始
-//				mv.visitLabel(startLabel);
-//				mv.visitLineNumber(0, startLabel);
+				Label startLabel = new Label();//本地变量 作用域-开始
+				mv.visitLabel(startLabel);
+				mv.visitLineNumber(0, startLabel);
 				//亚栈this
 				int line = 0;//行号
 				mv.visitVarInsn(ALOAD, 0);//this
 				line ++;
-				mv.visitFieldInsn(GETFIELD, dServerImplClassName, fieldName, fieldDesc);//fieldName
+				mv.visitFieldInsn(GETFIELD, dServerImplClassFullName, fieldName, fieldDesc);//fieldName
 				line +=3;
 					//亚栈入参
 				int paramNum = buildMethodVisitorArgs(mv, methodNode, line);
@@ -407,7 +402,11 @@ public class Server2DubboServer {
 				line +=5;
 				
 //				buildParameterAnnotation(mv, methodNode);
-//				buildMethodLocalVariables(mv, methodNode, paramNum, startLabel,line++);
+				buildMethodLocalVariables(mv, methodNode, paramNum, startLabel,line++);
+//				int retCode = buildMethodReturnCode(methodNode.desc);
+//				if (retCode == RETURN) {
+//					mv.visitInsn(POP);
+//				}
 				mv.visitInsn(buildMethodReturnCode(methodNode.desc));
 
 				mv.visitMaxs(3, paramNum+1);
@@ -432,7 +431,7 @@ public class Server2DubboServer {
 			
 			for (int i = 1; i <= paramNum; i++) {
 				LocalVariableNode node = methodNode.localVariables.get(i);
-				System.out.println("--name:"+node.name+"--desc:"+node.desc+"--signature:"+node.signature);
+//				System.out.println("--name:"+node.name+"--desc:"+node.desc+"--signature:"+node.signature);
 
 				mv.visitLocalVariable(node.name, node.desc, node.signature, startLabel, endLabel, i);
 			}
@@ -463,7 +462,7 @@ public class Server2DubboServer {
 			boolean skip = false;//遇到[后续跳过
 			for (int i = 0; i < args.length; i++) {
 				for (char ch : args[i].toCharArray()) {
-					logger.info("-------------"+ch+"---"+skip);
+//					logger.info("-------------"+ch+"---"+skip);
 					if (ch == 'Z') {
 						if (skip) {
 							skip = false;
@@ -668,7 +667,7 @@ public class Server2DubboServer {
 			//亚栈入参
 			int loadNum = 1;
 			for (Integer loadOpcode : loadList) {
-				System.out.println(loadOpcode+"-----------"+loadNum);
+//				System.out.println(loadOpcode+"-----------"+loadNum);
 				mv.visitVarInsn(loadOpcode, loadNum);
 				line++;
 				loadNum++;

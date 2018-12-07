@@ -17,8 +17,8 @@ import org.springframework.context.annotation.AnnotationConfigUtils;
 import org.springframework.context.annotation.ClassPathBeanDefinitionScanner;
 import org.springframework.context.annotation.ComponentScanBeanDefinitionParser;
 import org.springframework.context.annotation.ScannedGenericBeanDefinition;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Element;
 
@@ -104,8 +104,9 @@ public class AutoServerComponentScanBeanDefinitionParser extends
 	private BeanDefinitionHolder registerBeanDefinition(
 			BeanDefinitionRegistry registry, Object source,Class clazz) {
 
-		String beanName = StringUtils.lowerCase(clazz.getSimpleName().substring(0, 1)).concat(clazz.getSimpleName().substring(1));
-
+		String beanName = resolveBeanName(clazz);
+		
+		
 		if (!registry.containsBeanDefinition(beanName)) {
 //			RootBeanDefinition rootBeanDefinition = new RootBeanDefinition(beanClassName, cargs, pvs)
 			RootBeanDefinition def = new RootBeanDefinition(clazz);
@@ -123,6 +124,18 @@ public class AutoServerComponentScanBeanDefinitionParser extends
 		return null;
 	}
 	
+	private String resolveBeanName(Class clazz) {
+		String beanName = StringUtils.lowerCase(clazz.getSimpleName().substring(0, 1)).concat(clazz.getSimpleName().substring(1));
+		Service serviceAnno = (Service) clazz.getAnnotation(Service.class);
+		if (serviceAnno != null && StringUtils.isNotBlank(serviceAnno.value())) {
+			beanName = serviceAnno.value();
+		}
+		Component componentAnno = (Component) clazz.getAnnotation(Component.class);
+		if (componentAnno != null && StringUtils.isNotBlank(componentAnno.value())) {
+			beanName = componentAnno.value();
+		}
+		return beanName;
+	}
 	
 	private static BeanDefinitionHolder register(
 			BeanDefinitionRegistry registry, RootBeanDefinition definition, String beanName) {

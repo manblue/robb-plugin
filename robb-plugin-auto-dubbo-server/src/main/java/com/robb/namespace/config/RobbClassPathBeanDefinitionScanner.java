@@ -6,15 +6,27 @@ import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.BeanDefinitionStoreException;
+import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.config.BeanDefinitionHolder;
+import org.springframework.beans.factory.support.AbstractBeanDefinition;
+import org.springframework.beans.factory.support.BeanDefinitionDefaults;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
+import org.springframework.beans.factory.support.BeanNameGenerator;
+import org.springframework.context.annotation.AnnotationBeanNameGenerator;
+import org.springframework.context.annotation.AnnotationConfigUtils;
+import org.springframework.context.annotation.AnnotationScopeMetadataResolver;
 import org.springframework.context.annotation.ClassPathBeanDefinitionScanner;
 import org.springframework.context.annotation.ScannedGenericBeanDefinition;
+import org.springframework.context.annotation.ScopeMetadata;
+import org.springframework.context.annotation.ScopeMetadataResolver;
+import org.springframework.context.annotation.ScopedProxyMode;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.core.type.classreading.MetadataReader;
+import org.springframework.util.Assert;
 
 import com.robb.config.AutoServerConfig;
 
@@ -22,12 +34,36 @@ public class RobbClassPathBeanDefinitionScanner extends ClassPathBeanDefinitionS
 	static final String DEFAULT_RESOURCE_PATTERN = "**/*.class";
 	static final String DEFAULT_JAR_PATTERN = "jar!";
 	
+	private ScopeMetadataResolver scopeMetadataResolver = new AnnotationScopeMetadataResolver();
+	private BeanNameGenerator beanNameGenerator = new AnnotationBeanNameGenerator();
+
 	
 	public RobbClassPathBeanDefinitionScanner(BeanDefinitionRegistry registry, boolean useDefaultFilters,
 			Environment environment, ResourceLoader resourceLoader) {
 		super(registry, useDefaultFilters, environment, resourceLoader);
 	}
 	
+	@Override
+	public void setScopeMetadataResolver(
+			ScopeMetadataResolver scopeMetadataResolver) {
+		// TODO Auto-generated method stub
+		this.scopeMetadataResolver = scopeMetadataResolver;
+		super.setScopeMetadataResolver(scopeMetadataResolver);
+	}
+	
+	@Override
+	public void setScopedProxyMode(ScopedProxyMode scopedProxyMode) {
+		// TODO Auto-generated method stub
+		this.scopeMetadataResolver = new AnnotationScopeMetadataResolver(scopedProxyMode);
+		super.setScopedProxyMode(scopedProxyMode);
+	}
+	
+	@Override
+	public void setBeanNameGenerator(BeanNameGenerator beanNameGenerator) {
+		// TODO Auto-generated method stub
+		this.beanNameGenerator = (beanNameGenerator != null ? beanNameGenerator : new AnnotationBeanNameGenerator());
+		super.setBeanNameGenerator(beanNameGenerator);
+	}
 	
 	@Override
 	public Set<BeanDefinition> findCandidateComponents(String basePackage) {
@@ -107,4 +143,39 @@ public class RobbClassPathBeanDefinitionScanner extends ClassPathBeanDefinitionS
 		return candidates;
 	}
 
+	@Override
+	public int scan(String... basePackages) {
+		// TODO Auto-generated method stub
+		return super.scan(basePackages);
+	}
+	
+	@Override
+	protected Set<BeanDefinitionHolder> doScan(String... basePackages) {
+		// TODO Auto-generated method stub
+//		return super.doScan(basePackages);
+		Assert.notEmpty(basePackages, "At least one base package must be specified");
+		Set<BeanDefinitionHolder> beanDefinitions = new LinkedHashSet<BeanDefinitionHolder>();
+		for (String basePackage : basePackages) {
+			Set<BeanDefinition> candidates = findCandidateComponents(basePackage);
+			for (BeanDefinition candidate : candidates) {
+				ScopeMetadata scopeMetadata = this.scopeMetadataResolver.resolveScopeMetadata(candidate);
+				candidate.setScope(scopeMetadata.getScopeName());
+				String beanName = this.beanNameGenerator.generateBeanName(candidate, getRegistry());
+				if (candidate instanceof AbstractBeanDefinition) {
+					postProcessBeanDefinition((AbstractBeanDefinition) candidate, beanName);
+				}
+				if (candidate instanceof AnnotatedBeanDefinition) {
+					AnnotationConfigUtils.processCommonDefinitionAnnotations((AnnotatedBeanDefinition) candidate);
+				}
+				if (checkCandidate(beanName, candidate)) {
+					BeanDefinitionHolder definitionHolder = new BeanDefinitionHolder(candidate, beanName);
+					definitionHolder =
+							RobbAnnotationConfigUtils.applyScopedProxyMode(scopeMetadata, definitionHolder, getRegistry());
+					beanDefinitions.add(definitionHolder);
+//					registerBeanDefinition(definitionHolder, getRegistry());
+				}
+			}
+		}
+		return beanDefinitions;
+	}
 }
