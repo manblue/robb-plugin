@@ -1,9 +1,11 @@
 package com.robb.asm;
 
+import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -14,6 +16,10 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import javassist.NotFoundException;
+
+import org.apache.catalina.loader.ResourceEntry;
+import org.apache.catalina.loader.WebappClassLoader;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.BooleanUtils;
@@ -36,8 +42,10 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ClassUtils;
 
+import com.alibaba.dubbo.common.bytecode.ClassGenerator;
 import com.robb.config.AutoControConfig;
 import com.robb.config.AutoServerConfig;
+import com.sun.xml.internal.ws.util.ByteArrayBuffer;
 
 //import jdk.internal.org.objectweb.asm.AnnotationVisitor;
 //import jdk.internal.org.objectweb.asm.ClassReader;
@@ -73,7 +81,7 @@ public class Server2DubboServer {
 	
 	final static String separator = "/";//FileSystems.getDefault().getSeparator();
 	private Map<String, Object> paramCache = new HashMap<String, Object>();
-	private Map<String, String> doneServerClassCache = new HashMap<String, String>();
+	private Map<String, Resource> doneServerClassCache = new HashMap<String, Resource>();
 	private static Logger logger = LoggerFactory.getLogger(Server2DubboServer.class);
 	private static boolean outFile = false;
 	private Server2DubboServer() {
@@ -107,10 +115,11 @@ public class Server2DubboServer {
 			Class dServerClass = handler.getInterfaceClass(serverImplClassNode);
 //			Method[] method = dServerClass.getDeclaredMethods();
 			paramCache.put(D_SERVER_CLASS_FULL_NAME, dServerClass.getName().replace('.', '/'));
-			String serverClassName = doneServerClassCache.get(dServerClass.getName());
-			if (StringUtils.isBlank(serverClassName)) {
+			Resource resource = doneServerClassCache.get(dServerClass.getName());
+			String serverClassName = null;
+			if (resource == null) {
 				
-				Resource resource = AutoServerConfig.removeServiceResourceCache("/"+dServerClass.getName().replace(".", "/")+".class");
+				resource = AutoServerConfig.removeServiceResourceCache("/"+dServerClass.getName().replace(".", "/")+".class");
 				InputStream in = resource.getInputStream();
 				classReader = new ClassReader(in);
 				in.close();
@@ -121,7 +130,8 @@ public class Server2DubboServer {
 				//修改类全路径名 业务server
 				serverClassNode.changeClassName(serverClassName);			
 				paramCache.put(SERVER_CLASS_SIGNATURE, serverClassNode.signature);
-				doneServerClassCache.put(dServerClass.getName(), serverClassName);
+				doneServerClassCache.put(dServerClass.getName(), resource);
+				doneServerClassCache.put(serverClassNode.name.replace('/', '.'), resource);
 
 				apdater = new ClassApdater();
 				serverClassNode.accept(apdater);
@@ -148,6 +158,8 @@ public class Server2DubboServer {
 			code = apdater.getClassWriter().toByteArray();
 			outFile(serverImplClassNode.name, code);
 			//业务serverImpl class
+			doneServerClassCache.put(serverImplClassNode.name.replace('/', '.'), resource);
+
 			Class  serverImplClass = handler.defineClazz(serverImplClassNode.name.replace('/', '.'), code, 0, code.length);
 //			Method[] methods = serverImplClass.getDeclaredMethods();
 
@@ -178,7 +190,27 @@ public class Server2DubboServer {
 		byte[] code = cw.toByteArray();
 		String dServerImplFullName = (String) paramCache.get(D_SERVER_IMPL_CLASS_FULL_NAME);
 		outFile(dServerImplFullName, code);
+		doneServerClassCache.put(dServerImplFullName.replace('/', '.'), doneServerClassCache.get(dServerClass.getName()));
+
 		Class  dServerImplClass = handler.defineClazz(dServerImplFullName.replace('/', '.'), code	, 0, code.length);
+		ClassGenerator generator = ClassGenerator.newInstance(dServerImplClass.getClassLoader());
+//		generator.getClassPool().makeClass(dServerImplClass.getName());
+		try {
+			generator.getClassPool().insertClassPath(dServerImplClass.getName());
+			InputStream is = new ByteArrayInputStream(code);
+			try {
+				generator.getClassPool().makeClass(is);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (RuntimeException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		} catch (NotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		return dServerImplClass;
 	}
 	
@@ -680,27 +712,6 @@ public class Server2DubboServer {
 			super(parent);
 		}
 		
-//		@Override
-//		public Class<?> findClass(String name) throws ClassNotFoundException {
-//			// TODO Auto-generated method stub
-//			System.out.println("=========="+name);
-//			Class clazz = getParent().findClass(name);
-//			return clazz;
-//		}
-		
-		@Override
-		public Class<?> loadClass(String name) throws ClassNotFoundException {
-			// TODO Auto-generated method stub
-//			AutoServerConfig.removeServiceImplClassCache(name);
-			Class clazz = null;
-			if (name.equals("RobbServiceImpl4Dubbo")) {
-				clazz = cache.get("com.robb.service.impl.RobbServiceImpl4Dubbo");
-			}else {
-				clazz = getParent().loadClass(name);
-			}
-			return clazz;
-		}
-		
 		public final Class<?> defineClazz(String name, byte[] b, int off, int len)
 	            throws ClassFormatError
 	        {
@@ -708,9 +719,21 @@ public class Server2DubboServer {
 //					Class clazz = this.defineClass(name, b, off, len);
 //					cache.put(name, clazz);
 //					return clazz;
+
 					Method cc = ClassLoader.class.getDeclaredMethod("defineClass", String.class,byte[].class,int.class,int.class);
 					cc.setAccessible(true);
-					return (Class<?>)cc.invoke(getParent(), new Object[]{name,b,off,len});
+					Class zzClass =  (Class<?>)cc.invoke(getParent(), new Object[]{name,b,off,len});
+					
+					Field field = WebappClassLoader.class.getDeclaredField("resourceEntries");
+					field.setAccessible(true);
+					HashMap resourceEntries = (HashMap) field.get(getParent());
+					
+					 ResourceEntry entry = new ResourceEntry();
+	                    entry.source = doneServerClassCache.get(name).getURL();
+	                    entry.codeBase = entry.source;
+					resourceEntries.put(name, entry);
+					
+					return zzClass;
 				} catch (Exception e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
