@@ -313,7 +313,7 @@ public class Server2DubboServer {
 		 * */
 		public ClassWriter buildClassHead(ClassNode serverImplClassNode) {
 			//classNode.name eg:com/robb/manager/RobbManager
-			String dubboServerImplName = serverImplClassNode.name.concat("4Dubbo");//java.lang.String
+			String dubboServerImplName = serverImplClassNode.name.concat("4Dubb");//java.lang.String
 			String simpleName =  StringUtils.substringAfterLast(dubboServerImplName, separator);
 			
 			paramCache.put(SERVER_IMPL_CLASS_FULL_NAME, serverImplClassNode.name);
@@ -711,7 +711,7 @@ public class Server2DubboServer {
 		public AsmHandler(ClassLoader parent) {
 			super(parent);
 		}
-		
+
 		public final Class<?> defineClazz(String name, byte[] b, int off, int len)
 	            throws ClassFormatError
 	        {
