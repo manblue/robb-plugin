@@ -9,6 +9,7 @@
 		<module>robb-plugin-auto-controller</module>
 		<module>robb-plugin-asm-handler</module>
 		<module>robb-plugin-auto-dubbo-server</module>
+		<module>robb-plugin-zk-servermanager</module>
 	</modules>
 	<dependencies>
 		<dependency>

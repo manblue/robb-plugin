@@ -65,7 +65,7 @@ public class DefaultManager2Controller {
 			ClassPrinter printer = ClassPrinter.getNewPrinter(true);
 //			InputStream is = managerClass.getClassLoader().getSystemResourceAsStream(managerClass.getName().replace(".", "/")+".class");
 			ClassReader cReader = new ClassReader(is);
-			cReader.accept(printer, 0);			
+//			cReader.accept(printer, 0);			
 
 			ClassNode node = new ClassNode();
 			cReader.accept(node, ClassReader.EXPAND_FRAMES); 
