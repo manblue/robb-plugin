@@ -14,7 +14,7 @@ public class Test {
 
         
         // 节点路径
-        String nodePath = "/super/testNode";
+        String nodePath = "/super";
 
         // NodeCache: 缓存节点，并且可以监听数据节点的变更，会触发事件
         final NodeCache nodeCache = new NodeCache(curatorConnect.client, nodePath);
@@ -45,10 +45,10 @@ public class Test {
         
         
         
-        Thread.sleep(1000);
+        Thread.sleep(1000000);
 
         // 关闭客户端
-        curatorConnect.closeZKClient();
+//        curatorConnect.closeZKClient();
 
         // 获取当前客户端的状态
         isZkCuratorStarted = curatorConnect.client.isStarted();
