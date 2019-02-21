@@ -36,6 +36,7 @@ public class ServiceRegister {
 		for (String ip : ips) {
 			StringBuffer sb = new StringBuffer(serverGroup);
 			sb.append("/").append(Constant.servicePrefix).append(serverName).append("_").append(ip).append("_").append(port);
+			logger.info("注册服务：id=:{},serverDescription:{}", sb.toString(),serverDescription);
 			connect.client.create().withMode(CreateMode.EPHEMERAL).forPath(sb.toString(), serverDescription.getBytes());
 		}
 		
